@@ -5,7 +5,7 @@ export UID := $(shell id -u)
 export GID := $(shell id -g)
 
 .DEFAULT_GOAL := help
-.PHONY: help up down logs migrate user dev test test-fast lint format lock audit build
+.PHONY: help up down logs migrate seed user dev test test-fast lint format lock audit build
 
 help: ## Show available commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -22,6 +22,9 @@ logs: ## Follow the app logs
 
 migrate: ## Apply database migrations
 	$(COMPOSE) run --rm web alembic upgrade head
+
+seed: ## Load the initial catalogs, phase templates and policies (idempotent)
+	$(COMPOSE) run --rm web flask seed
 
 user: ## Create a user account (interactive)
 	$(COMPOSE) run --rm web flask create-user

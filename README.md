@@ -22,8 +22,11 @@ Requisitos: Docker con Compose 2.24 o superior y GNU Make.
 ```bash
 cp .env.example .env          # cambia SECRET_KEY antes de usarlo fuera de tu equipo
 make up                       # construye, arranca y aplica las migraciones
-make user                     # crea la primera cuenta
+make seed                     # catálogos, plantillas de fases y políticas iniciales
+make user                     # crea la primera cuenta (asigna roles con --role admin…)
 ```
+
+Los roles son `admin`, `pm`, `lead`, `developer` y `observer`; un usuario puede tener varios. Para cambiarlos: `flask grant-role CORREO ROL` y `flask revoke-role CORREO ROL`.
 
 La aplicación queda en <http://127.0.0.1:8000> y la comprobación de salud en `/healthz`.
 
@@ -41,6 +44,7 @@ Desarrollo sin Docker (opcional): Python 3.14, [uv](https://docs.astral.sh/uv/) 
 set -a && . ./.env && set +a   # exporta las variables de .env
 uv sync && npm ci && npm run build
 uv run alembic upgrade head
+uv run flask --app hourplan seed
 uv run flask --app hourplan run --debug
 ```
 
@@ -61,7 +65,9 @@ Para los hooks locales: `uvx pre-commit install`.
 
 Monolito Flask organizado por features (`src/hourplan/<feature>/`): las rutas validan y delegan, los servicios contienen los casos de uso y reciben la sesión de base de datos por parámetro, y los modelos no conocen HTTP. Los contratos de [import-linter](pyproject.toml) verifican estas reglas en CI.
 
-Una organización puede adaptar la aplicación con su propia configuración (catálogos, plantillas de fases, marca) sin tocar el código; ver `HOURPLAN_OVERLAY_DIR` en `.env.example`.
+Modelo de datos: cada entrada de horas es una fila (múltiplos de 0,25 h); los totales, el plan contra lo real y el Gantt son consultas. Las fases son datos (plantillas con pasos de un tipo: planificación, construcción, verificación, aprobación o despliegue) y la lógica depende del tipo, no del nombre. Las políticas de jornada y de evaluación tienen fecha de vigencia y no se reescriben hacia atrás. Los cambios relevantes quedan en `audit_log`.
+
+Una organización puede adaptar la aplicación con su propia configuración sin tocar el código: si `HOURPLAN_OVERLAY_DIR` contiene un `seed.toml`, `make seed` lo usa en lugar de la [semilla neutra](src/hourplan/setup/seed.toml).
 
 ## Capturas
 
