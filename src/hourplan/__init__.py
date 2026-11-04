@@ -14,6 +14,7 @@ def create_app(config_name: str | None = None, overrides: dict[str, Any] | None 
         app.config.from_mapping(overrides)
 
     from hourplan import extensions
+    from hourplan.admin import routes as admin_routes
     from hourplan.auth import cli as auth_cli
     from hourplan.auth import routes as auth_routes
     from hourplan.health import routes as health_routes
@@ -34,6 +35,7 @@ def create_app(config_name: str | None = None, overrides: dict[str, Any] | None 
     app.register_blueprint(auth_routes.bp)
     app.register_blueprint(auth_cli.bp)
     app.register_blueprint(main_routes.bp)
+    app.register_blueprint(admin_routes.bp)
     app.register_blueprint(setup_cli.bp)
 
     init_error_handlers(app)

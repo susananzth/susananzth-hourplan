@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "admin/_macros.html" import field, toggle, badge %}
+{% block title %}{{ user.display_name }} · HourPlan{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin.user_list') }}" class="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">← Usuarios</a>
+<h1 class="mt-2 text-2xl font-semibold text-ink">{{ user.display_name }}</h1>
+<p class="text-ink-muted">{{ user.email }} · {{ badge(user.is_active) }}</p>
+<div class="mt-2">{{ toggle(url_for('admin.user_toggle', user_id=user.id), user.is_active) }}</div>
+
+<h2 class="mt-8 text-lg font-semibold text-ink">Roles</h2>
+<ul class="mt-3 max-w-lg divide-y divide-line rounded-lg border border-line bg-surface-raised">
+  {% for role in roles %}
+  <li class="flex items-center justify-between px-4 py-2 text-sm text-ink">
+    {{ labels[role] }}
+    <form method="post" action="{{ url_for('admin.user_revoke', user_id=user.id, role=role.value) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600">Quitar</button>
+    </form>
+  </li>
+  {% else %}
+  <li class="px-4 py-3 text-sm text-ink-muted">Sin roles: solo puede entrar, no ver nada más.</li>
+  {% endfor %}
+</ul>
+<form method="post" action="{{ url_for('admin.user_grant', user_id=user.id) }}" class="mt-4 flex max-w-lg items-end gap-3">
+  {{ form.hidden_tag() }}
+  <div class="flex-1">{{ field(form.role) }}</div>
+  <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Asignar</button>
+</form>
+{% endblock %}

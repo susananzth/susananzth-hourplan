@@ -68,6 +68,11 @@ def policy_at[P: VersionedPolicy](session: Session, model: type[P], day: date) -
     return session.scalars(stmt).first()
 
 
+def list_policies[P: VersionedPolicy](session: Session, model: type[P]) -> list[P]:
+    """Every version, newest first."""
+    return list(session.scalars(select(model).order_by(model.effective_from.desc())))
+
+
 def schedule_evaluation_policy(
     session: Session, data: EvaluationPolicyData, *, today: date, actor_id: int | None
 ) -> EvaluationPolicy:

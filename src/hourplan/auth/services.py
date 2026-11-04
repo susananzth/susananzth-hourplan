@@ -33,6 +33,10 @@ class WeakPasswordError(AuthError):
     pass
 
 
+class SelfLockoutError(AuthError):
+    """An admin tried to remove their own access."""
+
+
 def normalize_email(email: str) -> str:
     return email.strip().lower()
 
@@ -40,6 +44,28 @@ def normalize_email(email: str) -> str:
 def find_by_email(session: Session, email: str) -> User | None:
     stmt = select(User).where(func.lower(User.email) == normalize_email(email))
     return session.scalars(stmt).one_or_none()
+
+
+def list_users(session: Session) -> list[User]:
+    return list(session.scalars(select(User).order_by(func.lower(User.display_name), User.id)))
+
+
+def set_user_active(session: Session, user: User, active: bool, *, actor_id: int | None) -> None:
+    if not active and user.id == actor_id:
+        raise SelfLockoutError("You cannot deactivate your own account")
+    with transaction(session):
+        if user.is_active == active:
+            return
+        user.is_active = active
+        audit.record(
+            session,
+            action=AuditAction.UPDATE,
+            entity_type="user",
+            entity_id=user.id,
+            actor_id=actor_id,
+            changes={"is_active": [not active, active]},
+            subject_user_id=user.id,
+        )
 
 
 def get_active_user(session: Session, user_id: int) -> User | None:
@@ -93,6 +119,8 @@ def grant_role(session: Session, user: User, role: Role, *, actor_id: int | None
 
 def revoke_role(session: Session, user: User, role: Role, *, actor_id: int | None) -> bool:
     """Remove ``role`` from ``user``. Returns ``False`` if they did not have it."""
+    if role == Role.ADMIN and user.id == actor_id:
+        raise SelfLockoutError("You cannot remove your own admin role")
     with transaction(session):
         link = next((link for link in user.role_links if link.role == role), None)
         if link is None:
