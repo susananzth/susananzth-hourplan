@@ -55,7 +55,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH=/opt/venv/bin:$PATH \
     HOURPLAN_ENV=production \
     FLASK_APP=hourplan
-RUN addgroup -S -g 10001 app && adduser -S -D -H -u 10001 -G app app
+# pip is not needed at runtime and its vendored libraries carry their own CVEs.
+RUN python -m pip uninstall -y pip \
+    && rm -rf /usr/local/bin/pip* \
+    && addgroup -S -g 10001 app && adduser -S -D -H -u 10001 -G app app
 WORKDIR /app
 COPY --from=deps /opt/venv /opt/venv
 COPY alembic.ini ./
