@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "selfRequestsOnly": true}'>
+  <title>{% block title %}HourPlan{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <script src="{{ url_for('static', filename='vendor/htmx.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='vendor/alpine-csp.min.js') }}" defer></script>
+</head>
+<body class="h-full bg-surface text-ink antialiased" hx-headers='{"X-CSRFToken": "{{ csrf_token() }}"}'>
+  <a href="#contenido" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:text-brand-700">Saltar al contenido</a>
+
+  {% block header %}
+  <header class="border-b border-line bg-surface-raised">
+    <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+      <a href="{{ url_for('main.index') }}" class="text-lg font-semibold text-brand-700 dark:text-brand-300">HourPlan</a>
+      {% if current_user.is_authenticated %}
+      <form method="post" action="{{ url_for('auth.logout') }}" class="flex items-center gap-3">
+        <span class="text-sm text-ink-muted">{{ current_user.display_name }}</span>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600">Cerrar sesión</button>
+      </form>
+      {% endif %}
+    </div>
+  </header>
+  {% endblock %}
+
+  <main id="contenido" class="mx-auto max-w-7xl px-4 py-8">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="mb-6 space-y-2" role="status" aria-live="polite">
+      {% for category, message in messages %}
+      <p class="rounded-md border px-4 py-3 text-sm {{ 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200' if category == 'error' else 'border-line bg-surface-raised text-ink' }}">{{ message }}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

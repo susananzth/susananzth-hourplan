@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@source "../../src/hourplan";
+
+/*
+ * Brand tokens. An organisation can override them with its own stylesheet
+ * without touching the templates.
+ */
+@theme {
+  --color-brand-50: oklch(0.97 0.014 254.6);
+  --color-brand-100: oklch(0.932 0.032 255.6);
+  --color-brand-300: oklch(0.809 0.105 251.8);
+  --color-brand-500: oklch(0.623 0.214 259.8);
+  --color-brand-600: oklch(0.546 0.245 262.9);
+  --color-brand-700: oklch(0.488 0.243 264.4);
+
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+    --surface: var(--color-slate-50);
+    --surface-raised: var(--color-white);
+    --line: var(--color-slate-200);
+    --line-strong: var(--color-slate-300);
+    --ink: var(--color-slate-900);
+    --ink-muted: var(--color-slate-600);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface: var(--color-slate-950);
+      --surface-raised: var(--color-slate-900);
+      --line: var(--color-slate-800);
+      --line-strong: var(--color-slate-700);
+      --ink: var(--color-slate-100);
+      --ink-muted: var(--color-slate-400);
+    }
+  }
+}

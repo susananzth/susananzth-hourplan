@@ -1,0 +1,21 @@
+{
+  "name": "hourplan-assets",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "vendor": "node scripts/copy-vendor.mjs",
+    "css": "tailwindcss -i assets/css/app.css -o src/hourplan/static/css/app.css --minify",
+    "build": "npm run vendor && npm run css",
+    "dev": "npm run vendor && tailwindcss -i assets/css/app.css -o src/hourplan/static/css/app.css --watch"
+  },
+  "devDependencies": {
+    "@alpinejs/csp": "3.17.5",
+    "@tailwindcss/cli": "4.3.4",
+    "htmx.org": "2.0.11",
+    "tailwindcss": "4.3.4"
+  }
+}
