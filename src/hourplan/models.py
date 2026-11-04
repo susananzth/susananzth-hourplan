@@ -4,6 +4,7 @@ from hourplan.audit.models import AuditLog
 from hourplan.auth.models import User, UserRole
 from hourplan.catalogs.models import Application, CatalogItem, Portfolio, Repository
 from hourplan.db import Base
+from hourplan.imports.models import ImportBatch, ImportIssue
 from hourplan.planning.models import PlanAllocation, PlanVersion
 from hourplan.policies.models import EvaluationPolicy, Holiday
 from hourplan.projects.models import (
@@ -28,6 +29,8 @@ __all__ = [
     "ChangeRequest",
     "EvaluationPolicy",
     "Holiday",
+    "ImportBatch",
+    "ImportIssue",
     "PhaseCycle",
     "PhaseTemplate",
     "PhaseTemplateStep",

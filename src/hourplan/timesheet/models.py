@@ -102,6 +102,11 @@ class TimeEntry(IdMixin, TimestampMixin, Base):
         ForeignKey("user_account.id", ondelete="SET NULL")
     )
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Phase as written in an imported file, until it is linked to a project phase.
+    source_phase: Mapped[str | None] = mapped_column(String(60))
+    import_batch_id: Mapped[int | None] = mapped_column(ForeignKey("import_batch.id"))
+    # Fingerprint of the imported row; a repeated import skips keys that already exist.
+    import_key: Mapped[str | None] = mapped_column(String(40), unique=True)
 
 
 class Absence(IdMixin, TimestampMixin, Base):
@@ -133,6 +138,8 @@ class Absence(IdMixin, TimestampMixin, Base):
     )
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     notes: Mapped[str | None] = mapped_column(Text)
+    import_batch_id: Mapped[int | None] = mapped_column(ForeignKey("import_batch.id"))
+    import_key: Mapped[str | None] = mapped_column(String(40), unique=True)
 
 
 class TimeBankLedger(IdMixin, TimestampMixin, Base):

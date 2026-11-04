@@ -16,6 +16,7 @@ dependencies = [
   "flask-limiter~=4.1",
   "argon2-cffi~=25.1",
   "pydantic~=2.14",
+  "openpyxl~=3.1",
   "gunicorn~=26.2",
 ]
 
@@ -24,6 +25,7 @@ dev = [
   "ruff~=0.17.3",
   "mypy~=2.4",
   "types-wtforms>=3.3",
+  "types-openpyxl>=3.1",
   "import-linter~=2.15",
   "pip-audit~=2.10",
   "pre-commit~=4.7",
@@ -50,7 +52,7 @@ src = ["src", "tests"]
 select = ["E", "W", "F", "I", "B", "UP", "S", "C4", "SIM", "RUF", "PT", "N", "DTZ", "T20"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S105", "S106"]
+"tests/**" = ["S101", "S105", "S106", "DTZ001"]
 "migrations/**" = ["N999", "E501"]
 
 # ---------------------------------------------------------------- mypy
@@ -106,7 +108,7 @@ forbidden_modules = ["hourplan.*.services", "hourplan.*.routes", "flask"]
 name = "Feature layers"
 type = "layers"
 layers = [
-  "hourplan.main | hourplan.health | hourplan.setup | hourplan.admin",
+  "hourplan.main | hourplan.health | hourplan.setup | hourplan.admin | hourplan.imports",
   "hourplan.timesheet | hourplan.planning",
   "hourplan.projects",
   "hourplan.catalogs | hourplan.policies | hourplan.resources",
