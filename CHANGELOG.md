@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 ## [Sin publicar]
 
 ### Añadido
+- Importación de hojas de horas de Excel (una fila por tarea y día pasa a una entrada de horas por día): `flask import-hours`, `import-report` e `import-revert`. Es idempotente, reversible por lote y genera un informe de calidad (códigos no válidos, tickets múltiples, horas fuera de rango, títulos distintos para un mismo código). Las ausencias se guardan aparte. Mapeo ajustable con `import_mapping.toml` en el overlay.
 - Esquema del dominio: proyectos y tickets con código externo, plantillas y fases configurables, ciclos de verificación y aprobación, solicitudes de cambio, enlaces entre trabajos, versiones de plan y asignaciones, entradas de horas, ausencias y banco de horas.
 - Catálogos configurables, carteras, aplicaciones y repositorios; recursos asignables con o sin cuenta.
 - Roles (admin, pm, lead, developer, observer) aplicados en el servidor; comandos `flask grant-role` y `flask revoke-role`, y `--role` en `flask create-user`.

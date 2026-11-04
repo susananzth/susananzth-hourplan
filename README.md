@@ -67,7 +67,17 @@ Monolito Flask organizado por features (`src/hourplan/<feature>/`): las rutas va
 
 Modelo de datos: cada entrada de horas es una fila (múltiplos de 0,25 h); los totales, el plan contra lo real y el Gantt son consultas. Las fases son datos (plantillas con pasos de un tipo: planificación, construcción, verificación, aprobación o despliegue) y la lógica depende del tipo, no del nombre. Las políticas de jornada y de evaluación tienen fecha de vigencia y no se reescriben hacia atrás. Los cambios relevantes quedan en `audit_log`.
 
-Una organización puede adaptar la aplicación con su propia configuración sin tocar el código: si `HOURPLAN_OVERLAY_DIR` contiene un `seed.toml`, `make seed` lo usa en lugar de la [semilla neutra](src/hourplan/setup/seed.toml).
+Una organización puede adaptar la aplicación con su propia configuración sin tocar el código: si `HOURPLAN_OVERLAY_DIR` contiene un `seed.toml`, `make seed` lo usa en lugar de la [semilla neutra](src/hourplan/setup/seed.toml). Del mismo modo, `import_mapping.toml` ajusta cómo se leen los Excel.
+
+### Importar horas desde Excel
+
+```
+flask import-hours archivo.xlsx   # una fila por tarea y una columna por día
+flask import-report <lote>        # hallazgos de calidad de datos
+flask import-revert <lote>        # deshace el lote completo
+```
+
+Repetir el mismo archivo se rechaza y las filas ya guardadas se omiten. Con Docker, monta el archivo en el contenedor (`docker compose run --rm -v "$PWD/datos":/datos:ro web flask import-hours /datos/archivo.xlsx`).
 
 ## Capturas
 
