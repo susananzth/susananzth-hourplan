@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "admin/_macros.html" import field %}
+{% block title %}{{ title }} · HourPlan{% endblock %}
+{% block content %}
+<div class="max-w-lg">
+  <h1 class="mb-6 text-2xl font-semibold text-ink">{{ title }}</h1>
+  <form method="post" novalidate class="space-y-5 rounded-lg border border-line bg-surface-raised p-6 shadow-sm">
+    {{ form.hidden_tag() }}
+    {% for f in form if f.widget.input_type != 'hidden' %}{{ field(f) }}{% endfor %}
+    <div class="flex items-center gap-4">
+      <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Guardar</button>
+      <a href="{{ back }}" class="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

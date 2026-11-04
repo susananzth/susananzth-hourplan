@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "admin/_macros.html" import badge %}
+{% block title %}Usuarios · HourPlan{% endblock %}
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+  <h1 class="text-2xl font-semibold text-ink">Usuarios</h1>
+  <a href="{{ url_for('admin.user_new') }}" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Nuevo</a>
+</div>
+<div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
+  <table class="w-full text-left text-sm">
+    <thead class="border-b border-line text-ink-muted"><tr>
+      <th scope="col" class="px-4 py-2 font-medium">Nombre</th>
+      <th scope="col" class="px-4 py-2 font-medium">Correo</th>
+      <th scope="col" class="px-4 py-2 font-medium">Roles</th>
+      <th scope="col" class="px-4 py-2 font-medium">Estado</th>
+      <th scope="col" class="px-4 py-2"><span class="sr-only">Acciones</span></th>
+    </tr></thead>
+    <tbody>
+      {% for user in users %}
+      <tr class="border-b border-line last:border-0">
+        <td class="px-4 py-2 text-ink">{{ user.display_name }}</td>
+        <td class="px-4 py-2 text-ink">{{ user.email }}</td>
+        <td class="px-4 py-2 text-ink">{{ user.roles|sort|join(', ') or '—' }}</td>
+        <td class="px-4 py-2">{{ badge(user.is_active) }}</td>
+        <td class="px-4 py-2 text-right"><a href="{{ url_for('admin.user_detail', user_id=user.id) }}" class="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">Gestionar</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

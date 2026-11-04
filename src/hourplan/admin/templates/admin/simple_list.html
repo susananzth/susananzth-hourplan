@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "admin/_macros.html" import toggle, badge %}
+{% block title %}{{ title }} · HourPlan{% endblock %}
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+  <h1 class="text-2xl font-semibold text-ink">{{ title }}</h1>
+  <a href="{{ url_for('admin.' ~ prefix ~ '_new') }}" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Nuevo</a>
+</div>
+<div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
+  <table class="w-full text-left text-sm">
+    <thead class="border-b border-line text-ink-muted"><tr>
+      {% for h in headers %}<th scope="col" class="px-4 py-2 font-medium">{{ h }}</th>{% endfor %}
+      <th scope="col" class="px-4 py-2 font-medium">Estado</th>
+      <th scope="col" class="px-4 py-2"><span class="sr-only">Acciones</span></th>
+    </tr></thead>
+    <tbody>
+      {% for entity, cells in rows %}
+      <tr class="border-b border-line last:border-0">
+        {% for c in cells %}<td class="px-4 py-2 text-ink">{{ c }}</td>{% endfor %}
+        <td class="px-4 py-2">{{ badge(entity.is_active) }}</td>
+        <td class="whitespace-nowrap px-4 py-2 text-right">
+          <a href="{{ url_for('admin.' ~ prefix ~ '_edit', entity_id=entity.id) }}" class="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">Editar</a>
+          {{ toggle(url_for('admin.' ~ prefix ~ '_toggle', entity_id=entity.id), entity.is_active) }}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ headers|length + 2 }}" class="px-4 py-6 text-center text-ink-muted">Todavía no hay registros.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

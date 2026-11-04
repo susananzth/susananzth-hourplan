@@ -1,0 +1,140 @@
+# Neutral seed of the core and the demo. An organization replaces it with
+# $HOURPLAN_OVERLAY_DIR/seed.toml. Codes are stable identifiers; names are shown in the UI.
+
+[evaluation_policy]
+effective_from = 2000-01-01
+colors_enabled = true
+hours_tolerance_pct = 10
+hours_red_pct = 25
+dates_tolerance_pct = 10
+dates_red_pct = 25
+
+[work_policy]
+effective_from = 2000-01-01
+standard_daily_hours = 8
+daily_warning_hours = 10
+max_project_weeks = 3
+idle_minutes = 5
+
+[[catalog]]
+kind = "requirement_type"
+items = [
+  { code = "NEW", name = "Nuevo desarrollo" },
+  { code = "ENHANCEMENT", name = "Mejora" },
+  { code = "MAINTENANCE", name = "Mantenimiento" },
+]
+
+[[catalog]]
+kind = "task_type"
+items = [
+  { code = "ANALYSIS", name = "Análisis" },
+  { code = "DEVELOPMENT", name = "Desarrollo" },
+  { code = "TESTING", name = "Pruebas" },
+  { code = "DOCUMENTATION", name = "Documentación" },
+  { code = "SUPPORT", name = "Soporte" },
+  { code = "DEPLOYMENT", name = "Despliegue" },
+]
+
+[[catalog]]
+kind = "project_status"
+items = [
+  { code = "BACKLOG", name = "Por iniciar" },
+  { code = "IN_PROGRESS", name = "En curso" },
+  { code = "ON_HOLD", name = "En pausa" },
+  { code = "DONE", name = "Terminado", attributes = { is_closed = true } },
+  { code = "CANCELLED", name = "Cancelado", attributes = { is_closed = true } },
+]
+
+[[catalog]]
+kind = "priority"
+items = [
+  { code = "HIGH", name = "Alta" },
+  { code = "MEDIUM", name = "Media" },
+  { code = "LOW", name = "Baja" },
+]
+
+[[catalog]]
+kind = "rework_category"
+items = [
+  { code = "EXECUTION", name = "Ejecución", children = [
+    { code = "INCOMPLETE", name = "Enviado incompleto por tiempo" },
+    { code = "UNTESTED_DEFECT", name = "Defecto no probado" },
+  ] },
+  { code = "PLANNING", name = "Planificación y estimación", attributes = { attributable_to_developer = false }, children = [
+    { code = "SHORT_ESTIMATE", name = "Estimación corta" },
+    { code = "UNFORESEEN_SCENARIOS", name = "Escenarios no previstos" },
+  ] },
+  { code = "SCOPE", name = "Alcance y requerimiento", attributes = { attributable_to_developer = false }, children = [
+    { code = "UNCLEAR_SCOPE", name = "Alcance mal definido" },
+    { code = "CLIENT_CHANGE", name = "Cambio del cliente" },
+  ] },
+  { code = "VALIDATION", name = "Validación", children = [
+    { code = "GATE_OBSERVATION", name = "Observación de una puerta de aprobación" },
+    { code = "STATIC_ANALYSIS", name = "Hallazgo de análisis automático" },
+  ] },
+  { code = "TESTING", name = "Pruebas", children = [
+    { code = "INCOMPLETE_TEST_SCOPE", name = "Alcance de pruebas incompleto" },
+    { code = "LATE_FINDING", name = "Hallazgo tardío" },
+  ] },
+  { code = "EXTERNAL", name = "Externo", attributes = { attributable_to_developer = false }, children = [
+    { code = "ENVIRONMENT", name = "Ambiente" },
+    { code = "DATA", name = "Datos" },
+    { code = "OTHER_TEAM", name = "Otro equipo" },
+  ] },
+]
+
+[[catalog]]
+kind = "activity_bucket"
+items = [
+  { code = "CONTINGENCY", name = "Contingencia no planificada", attributes = { is_contingency = true }, children = [
+    { code = "CONTINGENCY_INCIDENT", name = "Incidente", attributes = { is_contingency = true } },
+    { code = "CONTINGENCY_MEETING", name = "Reunión improvisada", attributes = { is_contingency = true } },
+    { code = "CONTINGENCY_QUERY", name = "Consulta de otra área", attributes = { is_contingency = true } },
+    { code = "CONTINGENCY_OTHER", name = "Otro", attributes = { is_contingency = true } },
+  ] },
+  { code = "MEETING", name = "Reunión" },
+  { code = "ONBOARDING", name = "Inducción" },
+  { code = "TRAINING", name = "Capacitación" },
+  { code = "ADMINISTRATION", name = "Gestión administrativa" },
+]
+
+[[catalog]]
+kind = "application_type"
+items = [
+  { code = "APPLICATION", name = "Aplicación" },
+  { code = "SERVICE", name = "Servicio" },
+  { code = "DATABASE", name = "Base de datos" },
+]
+
+[[catalog]]
+kind = "change_request_size"
+items = [
+  { code = "SMALL", name = "Pequeño" },
+  { code = "MEDIUM", name = "Mediano" },
+  { code = "LARGE", name = "Grande" },
+]
+
+[[phase_template]]
+code = "STANDARD"
+name = "Estándar"
+is_default = true
+steps = [
+  { name = "Análisis", phase_type = "planning" },
+  { name = "Diseño", phase_type = "planning" },
+  { name = "Desarrollo", phase_type = "construction" },
+  { name = "Validación", phase_type = "approval", requires_approval = true },
+  { name = "Pruebas", phase_type = "verification" },
+  { name = "Aceptación", phase_type = "verification", requires_approval = true },
+  { name = "Despliegue", phase_type = "deployment", counts_as_delivery = true },
+]
+
+[[phase_template]]
+code = "SHORT"
+name = "Corta"
+description = "Cambios pequeños y mantenimiento."
+steps = [
+  { name = "Análisis", phase_type = "planning" },
+  { name = "Desarrollo", phase_type = "construction" },
+  { name = "Pruebas", phase_type = "verification" },
+  { name = "Despliegue", phase_type = "deployment", counts_as_delivery = true },
+]
