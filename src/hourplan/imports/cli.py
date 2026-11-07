@@ -1,3 +1,4 @@
+import tempfile
 from datetime import date, datetime
 from pathlib import Path
 
@@ -7,7 +8,7 @@ from sqlalchemy import func, select
 
 from hourplan.db import transaction
 from hourplan.extensions import db
-from hourplan.imports import export, plan, services
+from hourplan.imports import demo, export, plan, services
 from hourplan.imports.mapping import load_mapping
 from hourplan.imports.models import ImportBatch, ImportIssue
 
@@ -69,6 +70,20 @@ def export_hours_command(file: Path, start: datetime | None, end: datetime | Non
         raise click.ClickException(str(err)) from err
     click.echo(f"Archivo: {file}")
     for name, value in sorted(totals.items()):
+        click.echo(f"  {name}: {value}")
+
+
+@bp.cli.command("demo-data")
+def demo_data_command() -> None:
+    """Load fictitious hours and plan (only into a database without hours)."""
+    try:
+        mapping = load_mapping(_mapping_path())
+        with tempfile.TemporaryDirectory() as workdir, transaction(db.session):
+            stats = demo.load_demo(db.session, Path(workdir), mapping)
+    except (demo.DemoRefusedError, services.ImportRejectedError, ValueError) as err:
+        raise click.ClickException(str(err)) from err
+    click.echo("Datos demo cargados:")
+    for name, value in sorted(stats.items()):
         click.echo(f"  {name}: {value}")
 
 
