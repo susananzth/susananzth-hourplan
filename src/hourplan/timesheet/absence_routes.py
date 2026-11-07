@@ -14,7 +14,7 @@ from hourplan.auth.permissions import roles_required
 from hourplan.auth.roles import Role
 from hourplan.extensions import db
 from hourplan.resources.models import Resource
-from hourplan.timesheet import absences
+from hourplan.timesheet import absences, bank
 from hourplan.timesheet.models import AbsenceType
 
 bp = Blueprint("absences", __name__, url_prefix="/ausencias", template_folder="templates")
@@ -59,6 +59,8 @@ def _error(err: Exception) -> str:
             return "No puedes decidir tu propia solicitud."
         case absences.AlreadyDecidedError():
             return "Esa solicitud ya fue resuelta."
+        case bank.InsufficientBankError():
+            return "El banco de horas no cubre ese día compensado."
         case absences.AbsenceError():
             return "No se pudo completar la acción."
         case ValidationError() | ValueError():
@@ -142,7 +144,7 @@ def decide(absence_id: int) -> Response:
     except MissingReasonError:
         db.session.rollback()
         flash("Para rechazar escribe un motivo.", "error")
-    except absences.AbsenceError as err:
+    except (absences.AbsenceError, bank.BankError) as err:
         db.session.rollback()
         flash(_error(err), "error")
     else:

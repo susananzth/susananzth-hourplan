@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Banco de horas · HourPlan{% endblock %}
+{% block content %}
+{% set input = "rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
+{% set primary = "rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600" %}
+{% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
+<h1 class="mb-6 text-2xl font-semibold text-ink">Banco de horas</h1>
+
+<dl class="mb-10 grid gap-4 sm:grid-cols-2">
+  <div class="rounded-lg border border-line bg-surface-raised p-4">
+    <dt class="text-sm text-ink-muted">Saldo aprobado</dt>
+    <dd class="text-3xl font-semibold text-ink">{{ balance }} h</dd>
+  </div>
+  <div class="rounded-lg border border-line bg-surface-raised p-4">
+    <dt class="text-sm text-ink-muted">Por aprobar</dt>
+    <dd class="text-3xl font-semibold text-ink">{{ waiting }} h</dd>
+  </div>
+</dl>
+
+{% if pending %}
+<section aria-labelledby="pendientes" class="mb-10">
+  <h2 id="pendientes" class="mb-3 text-lg font-semibold text-ink">Movimientos por resolver</h2>
+  <div class="space-y-3">
+    {% for move, name in pending %}
+    <form method="post" action="{{ url_for('bank.decide', movement_id=move.id) }}" class="flex flex-wrap items-end gap-3 rounded-lg border border-line bg-surface-raised p-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <p class="min-w-60 flex-1 text-sm text-ink"><strong>{{ name }}</strong> · {{ reasons[move.reason] }}{% if move.overtime_kind %} ({{ kinds[move.overtime_kind]|lower }}){% endif %}<br>
+        {{ move.entry_date.strftime('%d/%m/%Y') }} · {{ move.hours }} h{% if move.notes %}<br><span class="text-ink-muted">{{ move.notes }}</span>{% endif %}</p>
+      <div>
+        <label for="rechazo-{{ move.id }}" class="mb-1 block text-xs text-ink-muted">Motivo (obligatorio al rechazar)</label>
+        <input id="rechazo-{{ move.id }}" name="motivo_rechazo" maxlength="500" class="{{ input }}">
+      </div>
+      <button type="submit" name="decision" value="approve" class="{{ primary }}">Aprobar</button>
+      <button type="submit" name="decision" value="reject" class="{{ quiet }}">Rechazar</button>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section aria-labelledby="reclamar" class="mb-10">
+  <h2 id="reclamar" class="mb-1 text-lg font-semibold text-ink">Reclamar horas</h2>
+  <p class="mb-3 max-w-2xl text-sm text-ink-muted">Las horas sobre tu jornada o las de contingencias no planificadas de un día pasan al banco cuando tu líder las aprueba. Las horas de contingencia no se cuentan dos veces como extra.</p>
+  <form method="post" action="{{ url_for('bank.claim') }}" class="flex flex-wrap items-end gap-4 rounded-lg border border-line bg-surface-raised p-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>
+      <label for="dia" class="mb-1 block text-sm font-medium text-ink">Día</label>
+      <input id="dia" name="dia" type="date" required value="{{ today.isoformat() }}" class="{{ input }}">
+    </div>
+    <div>
+      <label for="motivo" class="mb-1 block text-sm font-medium text-ink">Qué reclamar</label>
+      <select id="motivo" name="motivo" class="{{ input }}">
+        <option value="overtime">Horas extra</option>
+        <option value="contingency">Contingencia no planificada</option>
+      </select>
+    </div>
+    <div>
+      <label for="tipo" class="mb-1 block text-sm font-medium text-ink">Horas extra</label>
+      <select id="tipo" name="tipo" class="{{ input }}">
+        {% for value, label in kinds.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="{{ primary }}">Reclamar</button>
+  </form>
+</section>
+
+<section aria-labelledby="movimientos">
+  <h2 id="movimientos" class="mb-3 text-lg font-semibold text-ink">Movimientos</h2>
+  <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
+    <table class="w-full text-left text-sm">
+      <thead class="border-b border-line text-ink-muted"><tr>
+        <th scope="col" class="px-4 py-2 font-medium">Fecha</th>
+        <th scope="col" class="px-4 py-2 font-medium">Motivo</th>
+        <th scope="col" class="px-4 py-2 text-right font-medium">Horas</th>
+        <th scope="col" class="px-4 py-2 font-medium">Estado</th>
+      </tr></thead>
+      <tbody>
+        {% for m in moves %}
+        <tr class="border-b border-line last:border-0">
+          <td class="px-4 py-2 text-ink">{{ m.entry_date.strftime('%d/%m/%Y') }}</td>
+          <td class="px-4 py-2 text-ink">{{ reasons[m.reason] }}{% if m.overtime_kind %} ({{ kinds[m.overtime_kind]|lower }}){% endif %}</td>
+          <td class="px-4 py-2 text-right text-ink">{{ '+' if m.hours > 0 }}{{ m.hours }}</td>
+          <td class="px-4 py-2 text-ink">{{ statuses[m.status] }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="px-4 py-6 text-center text-ink-muted">Todavía no hay movimientos.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

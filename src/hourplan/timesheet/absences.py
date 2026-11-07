@@ -11,6 +11,7 @@ from hourplan.audit import services as audit
 from hourplan.audit.models import AuditAction
 from hourplan.db import transaction
 from hourplan.resources.models import Resource
+from hourplan.timesheet import bank
 from hourplan.timesheet.models import Absence, AbsenceType, ApprovalStatus
 
 ENTITY = "absence"
@@ -143,6 +144,8 @@ def decide_absence(
         absence.status = status.value
         absence.decided_by_id = decider_id
         absence.decided_at = datetime.now(UTC)
+        if approve:
+            bank.charge_compensation(session, absence, decider_id=decider_id)
     return absence
 
 
@@ -165,6 +168,7 @@ def cancel_absence(
             changes={"status": [absence.status, None]},
             subject_user_id=_subject(session, absence),
         )
+        bank.refund_compensation(session, absence)
         session.delete(absence)
 
 
