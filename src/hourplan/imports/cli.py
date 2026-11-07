@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from pathlib import Path
 
 import click
@@ -6,7 +7,7 @@ from sqlalchemy import func, select
 
 from hourplan.db import transaction
 from hourplan.extensions import db
-from hourplan.imports import plan, services
+from hourplan.imports import export, plan, services
 from hourplan.imports.mapping import load_mapping
 from hourplan.imports.models import ImportBatch, ImportIssue
 
@@ -50,6 +51,25 @@ def import_plan_command(file: Path) -> None:
     for name, value in sorted(stats.items()):
         click.echo(f"  {name}: {value}")
     click.echo(f"Informe: flask import-report {batch_id}")
+
+
+@bp.cli.command("export-hours")
+@click.argument("file", type=click.Path(dir_okay=False, path_type=Path))
+@click.option("--from", "start", type=click.DateTime(["%Y-%m-%d"]), help="Primer día (AAAA-MM-DD).")
+@click.option("--to", "end", type=click.DateTime(["%Y-%m-%d"]), help="Último día (AAAA-MM-DD).")
+def export_hours_command(file: Path, start: datetime | None, end: datetime | None) -> None:
+    """Export the recorded hours to an Excel file with one sheet per resource."""
+    first: date | None = start.date() if start else None
+    last: date | None = end.date() if end else None
+    try:
+        totals = export.export_hours(
+            db.session, file, load_mapping(_mapping_path()), start=first, end=last
+        )
+    except ValueError as err:
+        raise click.ClickException(str(err)) from err
+    click.echo(f"Archivo: {file}")
+    for name, value in sorted(totals.items()):
+        click.echo(f"  {name}: {value}")
 
 
 @bp.cli.command("import-report")
