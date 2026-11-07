@@ -67,6 +67,7 @@ def navigation() -> dict[str, Any]:
             links += [
                 (url_for("admin.user_list"), "Usuarios"),
                 (url_for("admin.policy_list"), "Políticas"),
+                (url_for("admin.holiday_list"), "Feriados"),
             ]
     return {"nav_links": links}
 
@@ -93,6 +94,8 @@ def _message(err: Exception) -> str:
             return "La contraseña debe tener al menos 12 caracteres."
         case auth.SelfLockoutError():
             return "No puedes quitarte tu propio acceso de administración."
+        case policies.HolidayError():
+            return "No se pudo guardar el feriado: revisa la fecha y el nombre (no se repite)."
         case policies.PolicyInForceError():
             return "La política ya está vigente o la fecha es pasada: elige una fecha futura."
         case ValidationError():
@@ -626,3 +629,40 @@ def policy_new(slug: str) -> Response | str:
         if done:
             return done
     return _form_page(form, f"Nueva versión · {title}", back)
+
+
+@bp.get("/feriados")
+@roles_required(Role.ADMIN)
+def holiday_list() -> str:
+    try:
+        year = int(request.args.get("anio", _today().year))
+    except ValueError:
+        abort(400)
+    if not 2000 <= year <= 2100:
+        abort(400)
+    return render_template(
+        "admin/holiday_list.html", year=year, holidays=policies.list_holidays(db.session, year)
+    )
+
+
+@bp.post("/feriados")
+@roles_required(Role.ADMIN)
+def holiday_add() -> Response:
+    try:
+        day = date.fromisoformat(request.form.get("fecha", ""))
+        policies.add_holiday(db.session, day, request.form.get("nombre", ""), actor_id=_actor())
+    except (ValueError, policies.HolidayError) as err:
+        db.session.rollback()
+        _fail(err if isinstance(err, policies.HolidayError) else policies.HolidayError())
+        return redirect(url_for("admin.holiday_list"))
+    return redirect(url_for("admin.holiday_list", anio=day.year))
+
+
+@bp.post("/feriados/<int:holiday_id>/borrar")
+@roles_required(Role.ADMIN)
+def holiday_delete(holiday_id: int) -> Response:
+    try:
+        policies.delete_holiday(db.session, holiday_id, actor_id=_actor())
+    except policies.HolidayError:
+        abort(404)
+    return redirect(request.referrer or url_for("admin.holiday_list"))

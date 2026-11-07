@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from hourplan.audit import services as audit
 from hourplan.audit.models import AuditAction
 from hourplan.db import transaction
-from hourplan.policies.models import EvaluationPolicy, VersionedPolicy, WorkPolicy
+from hourplan.policies.models import EvaluationPolicy, Holiday, VersionedPolicy, WorkPolicy
 
 
 class PolicyError(ValueError):
@@ -118,3 +118,54 @@ def _schedule[P: VersionedPolicy](
             changes=changes,
         )
     return policy
+
+
+class HolidayError(ValueError):
+    pass
+
+
+def list_holidays(session: Session, year: int) -> list[Holiday]:
+    return list(
+        session.scalars(
+            select(Holiday)
+            .where(Holiday.holiday_date.between(date(year, 1, 1), date(year, 12, 31)))
+            .order_by(Holiday.holiday_date)
+        )
+    )
+
+
+def add_holiday(session: Session, day: date, name: str, *, actor_id: int | None) -> Holiday:
+    name = name.strip()
+    if not name:
+        raise HolidayError("A holiday needs a name")
+    if session.scalar(select(Holiday.id).where(Holiday.holiday_date == day)):
+        raise HolidayError("There is already a holiday on that date")
+    with transaction(session):
+        holiday = Holiday(holiday_date=day, name=name)
+        session.add(holiday)
+        session.flush()
+        audit.record(
+            session,
+            action=AuditAction.CREATE,
+            entity_type="holiday",
+            entity_id=holiday.id,
+            actor_id=actor_id,
+            changes={"holiday_date": day, "name": name},
+        )
+    return holiday
+
+
+def delete_holiday(session: Session, holiday_id: int, *, actor_id: int | None) -> None:
+    holiday = session.get(Holiday, holiday_id)
+    if holiday is None:
+        raise HolidayError("Unknown holiday")
+    with transaction(session):
+        audit.record(
+            session,
+            action=AuditAction.DELETE,
+            entity_type="holiday",
+            entity_id=holiday.id,
+            actor_id=actor_id,
+            changes={"holiday_date": [holiday.holiday_date, None], "name": [holiday.name, None]},
+        )
+        session.delete(holiday)
