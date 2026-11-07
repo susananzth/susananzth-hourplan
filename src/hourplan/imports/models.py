@@ -11,6 +11,7 @@ from hourplan.db import Base, IdMixin, TimestampMixin, enum_check
 
 class BatchKind(StrEnum):
     HOURS = "hours"
+    PLAN = "plan"
 
 
 class BatchStatus(StrEnum):
@@ -42,6 +43,10 @@ class ImportBatch(IdMixin, TimestampMixin, Base):
     )
     # Ids of the master records the batch created, by table, so a revert can remove them.
     created: Mapped[dict[str, list[int]]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
+    # Values the batch overwrote, by table, id and column: {"project": {"7": {"title": "Old"}}}.
+    previous: Mapped[dict[str, Any]] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb")
     )
     started_by_id: Mapped[int | None] = mapped_column(

@@ -10,9 +10,102 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 Kind = Literal["project", "ticket", "bucket", "absence"]
+
+
+class BacklogPhase(BaseModel):
+    """Columns of one phase in the backlog sheet and the template step they fill."""
+
+    step: str
+    status: str
+    start: str | None = None
+    end: str | None = None
+
+
+class BacklogMapping(BaseModel):
+    sheet: str = "backlog"  # normalised sheet name
+    # Header text (normalised) -> project field.
+    columns: dict[str, str] = Field(
+        default_factory=lambda: {
+            "codigo": "code",
+            "empresa": "portfolio",
+            "titulo": "title",
+            "status": "status",
+            "prioridad": "priority",
+            "esfuerzo (horas)": "effort",
+            "presupuesto": "budget",
+            "bitacora": "notes",
+        }
+    )
+    phases: list[BacklogPhase] = Field(
+        default_factory=lambda: [
+            BacklogPhase(step="Análisis", status="st-def", start="ini-def", end="fin-def"),
+            BacklogPhase(step="Diseño", status="st-ps", start="ini-ps", end="fin-ps"),
+            BacklogPhase(step="Desarrollo", status="st-des", start="ini-des", end="fin-des"),
+            BacklogPhase(step="Pruebas", status="st-qa", start="ini-qa", end="fin-qa"),
+            BacklogPhase(step="Aceptación", status="st-uat", start="ini-uat", end="fin-uat"),
+            BacklogPhase(step="Despliegue", status="stat-pase", end="f-pase"),
+        ]
+    )
+    # Effort column (normalised) -> template step; several columns may add up on one step.
+    efforts: dict[str, str] = Field(
+        default_factory=lambda: {
+            "esf-ps": "Diseño",
+            "esf-dis": "Diseño",
+            "esf-des": "Desarrollo",
+            "esf-qa": "Pruebas",
+            "esf-prd": "Despliegue",
+        }
+    )
+    # Normalised phase status text -> PhaseStatus value.
+    phase_statuses: dict[str, str] = Field(
+        default_factory=lambda: {
+            "completado": "done",
+            "ok": "done",
+            "desplegado": "done",
+            "en curso": "in_progress",
+            "pendiente": "pending",
+        }
+    )
+    # Normalised project status text -> project_status catalog code (others are created).
+    statuses: dict[str, str] = Field(
+        default_factory=lambda: {
+            "backlog": "BACKLOG",
+            "en analisis": "IN_PROGRESS",
+            "en desarrollo": "IN_PROGRESS",
+            "en qa": "IN_PROGRESS",
+            "en produccion": "DONE",
+            "despriorizado": "ON_HOLD",
+            "desestimado": "CANCELLED",
+        }
+    )
+    # Normalised priority text -> priority catalog code (others are created).
+    priorities: dict[str, str] = Field(
+        default_factory=lambda: {"alta": "HIGH", "media": "MEDIUM", "baja": "LOW"}
+    )
+
+
+class PlanMapping(BaseModel):
+    sheet: str = "planning"  # normalised sheet name
+    # Normalised phase text -> template step name; "" = the project, no particular phase.
+    phases: dict[str, str] = Field(
+        default_factory=lambda: {
+            "analisis": "Análisis",
+            "desarrollo": "Desarrollo",
+            "lev.obs": "Desarrollo",
+            "sop.qa": "Pruebas",
+            "sop.desp": "Despliegue",
+            "otros": "",
+        }
+    )
+    # Activity bucket for planned tickets that have no ticket number yet.
+    ticket_bucket: str = "Atención de tickets"
+    # Year of "2-Ene" style day headers when the sheet does not say it ("Ene-26").
+    year: int | None = None
+    # Planned hours per resource and day above this are reported as over-allocation.
+    workday_hours: Decimal = Decimal(8)
 
 
 class Mapping(BaseModel):
@@ -57,6 +150,18 @@ class Mapping(BaseModel):
     # A sheet is read as an hours sheet when it has at least this many date columns.
     min_day_columns: int = 28
     skip_sheets: list[str] = Field(default_factory=list)
+    # Normalised name in a file -> name of the resource it is ("victor santos" = "Victor S. S.").
+    resource_aliases: dict[str, str] = Field(default_factory=dict)
+
+    # Phase template given to imported projects that have none (code; empty = the default one).
+    phase_template: str = ""
+    backlog: BacklogMapping = Field(default_factory=BacklogMapping)
+    plan: PlanMapping = Field(default_factory=PlanMapping)
+
+    @field_validator("resource_aliases")
+    @classmethod
+    def _normalise_aliases(cls, aliases: dict[str, str]) -> dict[str, str]:
+        return {normalise(alias): name for alias, name in aliases.items()}
 
 
 def load_mapping(path: Path | None) -> Mapping:

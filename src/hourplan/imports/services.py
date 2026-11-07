@@ -7,20 +7,20 @@ what it created). Nothing here commits; the caller owns the transaction.
 import hashlib
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
-from sqlalchemy import CursorResult, delete, select
+from sqlalchemy import CursorResult, delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from hourplan.audit import services as audit
 from hourplan.audit.models import AuditAction
-from hourplan.catalogs.models import Application, CatalogItem, CatalogKind
+from hourplan.catalogs.models import Application, CatalogItem, CatalogKind, Portfolio
 from hourplan.imports.hours_sheet import SheetRow, detect_layout, read_rows
 from hourplan.imports.mapping import (
     Mapping,
@@ -37,7 +37,8 @@ from hourplan.imports.models import (
     ImportIssue,
     IssueSeverity,
 )
-from hourplan.projects.models import Project, ProjectKind
+from hourplan.planning.models import PlanAllocation, PlanVersion
+from hourplan.projects.models import Project, ProjectKind, ProjectPhase
 from hourplan.resources.models import Resource
 from hourplan.timesheet.models import Absence, ApprovalStatus, EntrySource, TimeEntry
 
@@ -61,6 +62,7 @@ class _Context:
     occurrences: Counter[str] = field(default_factory=Counter)
     titles: dict[tuple[str, str], str] = field(default_factory=dict)
     created: dict[str, list[int]] = field(default_factory=dict)
+    previous: dict[str, dict[str, dict[str, list[Any]]]] = field(default_factory=dict)
     stats: Counter[str] = field(default_factory=Counter)
     hours_read: Decimal = Decimal(0)
     hours_stored: Decimal = Decimal(0)
@@ -90,11 +92,35 @@ def import_hours(
     session: Session, path: Path, *, mapping: Mapping | None = None, actor_id: int | None = None
 ) -> ImportBatch:
     """Import every hours sheet of ``path``. Returns the batch with its issues attached."""
-    mapping = mapping or Mapping()
+    ctx, workbook = open_batch(session, path, BatchKind.HOURS, mapping or Mapping(), actor_id)
+    try:
+        for sheet in workbook.worksheets:
+            _import_sheet(ctx, sheet)
+    finally:
+        workbook.close()
+
+    if not ctx.stats["sheets"]:
+        raise ImportRejectedError("El archivo no tiene hojas de horas reconocibles.")
+    finish_batch(
+        ctx,
+        actor_id,
+        hours_read=str(ctx.hours_read),
+        hours_stored=str(ctx.hours_stored),
+        hours_absence=str(ctx.hours_absence),
+    )
+    return ctx.batch
+
+
+def open_batch(
+    session: Session, path: Path, kind: BatchKind, mapping: Mapping, actor_id: int | None
+) -> tuple[_Context, Workbook]:
+    """Reject a file already imported for ``kind``, open it and start its batch."""
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     if session.scalar(
         select(ImportBatch.id).where(
-            ImportBatch.file_sha256 == digest, ImportBatch.status == BatchStatus.COMPLETED
+            ImportBatch.kind == kind,
+            ImportBatch.file_sha256 == digest,
+            ImportBatch.status == BatchStatus.COMPLETED,
         )
     ):
         raise ImportRejectedError("Este archivo ya se importó (mismo contenido).")
@@ -104,41 +130,30 @@ def import_hours(
         raise ImportRejectedError(f"No se pudo leer el archivo: {type(err).__name__}") from err
 
     batch = ImportBatch(
-        kind=BatchKind.HOURS.value,
-        file_name=path.name[:255],
-        file_sha256=digest,
-        started_by_id=actor_id,
+        kind=kind.value, file_name=path.name[:255], file_sha256=digest, started_by_id=actor_id
     )
     session.add(batch)
     session.flush()
     ctx = _Context(session, mapping, batch)
     _preload(ctx)
+    return ctx, workbook
 
-    try:
-        for sheet in workbook.worksheets:
-            _import_sheet(ctx, sheet)
-    finally:
-        workbook.close()
 
-    if not ctx.stats["sheets"]:
-        raise ImportRejectedError("El archivo no tiene hojas de horas reconocibles.")
+def finish_batch(ctx: _Context, actor_id: int | None, **totals: str) -> None:
+    """Store what the batch created and changed, its counts, and audit it."""
+    batch = ctx.batch
     batch.created = ctx.created
-    batch.stats = {
-        **ctx.stats,
-        "hours_read": str(ctx.hours_read),
-        "hours_stored": str(ctx.hours_stored),
-        "hours_absence": str(ctx.hours_absence),
-    }
+    batch.previous = ctx.previous
+    batch.stats = {**ctx.stats, **totals}
     audit.record(
-        session,
+        ctx.session,
         action=AuditAction.CREATE,
         entity_type="import_batch",
         entity_id=batch.id,
         actor_id=actor_id,
         changes={"file": batch.file_name, **batch.stats},
     )
-    session.flush()
-    return batch
+    ctx.session.flush()
 
 
 def _preload(ctx: _Context) -> None:
@@ -193,7 +208,7 @@ def _import_row(ctx: _Context, sheet: str, row: SheetRow) -> None:
         )
         ctx.stats["rows_skipped"] += 1
         return
-    resource = _resource(ctx, name)
+    resource = _resource(ctx, name, sheet, row.number)
     type_text = normalise(values["type"])
     kind = ctx.mapping.kinds.get(type_text, "bucket")
     if not type_text:
@@ -246,15 +261,40 @@ def _key(ctx: _Context, prefix: str, fingerprint: str) -> str:
     return hashlib.sha1(raw.encode(), usedforsecurity=False).hexdigest()
 
 
-def _resource(ctx: _Context, name: str) -> Resource:
-    resource = ctx.resources.get(normalise(name))
+def _resource(
+    ctx: _Context, name: str, sheet: str | None = None, row: int | None = None
+) -> Resource:
+    key = normalise(name)
+    resource = ctx.resources.get(normalise(ctx.mapping.resource_aliases.get(key, key)))
+    if resource is None:
+        resource = _similar_resource(ctx, key)
+        if resource is not None:
+            ctx.issue(
+                IssueSeverity.INFO, "resource_matched",
+                f"{name!r} se asocia al recurso {resource.display_name!r} (mismo nombre "
+                "abreviado); si no es la misma persona, usa resource_aliases.", sheet or "", row,
+            )  # fmt: skip
     if resource is None:
         resource = Resource(display_name=name)
         ctx.session.add(resource)
         ctx.track("resource", resource)
-        ctx.resources[normalise(name)] = resource
         ctx.stats["resources_created"] += 1
+    ctx.resources[key] = resource
     return resource
+
+
+def _similar_resource(ctx: _Context, key: str) -> Resource | None:
+    """The only resource whose name has all the words of ``key``, or the other way round."""
+    words = set(key.split())
+    if len(words) < 2:
+        return None
+    found = {
+        resource.id: resource
+        for other, resource in ctx.resources.items()
+        if len(set(other.split())) >= 2
+        and (words <= set(other.split()) or set(other.split()) <= words)
+    }
+    return next(iter(found.values())) if len(found) == 1 else None
 
 
 def _target(
@@ -389,24 +429,39 @@ def _store_absences(ctx: _Context, resource: Resource, type_text: str, row: Shee
 
 
 def revert_batch(session: Session, batch: ImportBatch, *, actor_id: int | None = None) -> None:
-    """Remove what the batch stored, and the master records it created if nothing else uses them."""
+    """Undo a batch: remove what it stored, restore what it overwrote, and drop the master
+    records it created if nothing else uses them."""
     if batch.status == BatchStatus.REVERTED:
         raise ImportRejectedError("El lote ya estaba revertido.")
-    entries: CursorResult[Any] = session.execute(  # type: ignore[assignment]
-        delete(TimeEntry).where(TimeEntry.import_batch_id == batch.id)
+    removed = {
+        "time_entry": _delete(
+            session, delete(TimeEntry).where(TimeEntry.import_batch_id == batch.id)
+        ),
+        "absence": _delete(session, delete(Absence).where(Absence.import_batch_id == batch.id)),
+        "plan_allocation": _delete(
+            session,
+            delete(PlanAllocation).where(
+                PlanAllocation.import_batch_id == batch.id, PlanAllocation.plan_version_id.is_(None)
+            ),
+        ),
+        "plan_version": _delete(
+            session, delete(PlanVersion).where(PlanVersion.import_batch_id == batch.id)
+        ),
+    }
+    session.execute(
+        update(PlanAllocation)
+        .where(PlanAllocation.replaced_by_batch_id == batch.id)
+        .values(replaced_by_batch_id=None)
     )
-    absences: CursorResult[Any] = session.execute(  # type: ignore[assignment]
-        delete(Absence).where(Absence.import_batch_id == batch.id)
-    )
-    removed = {"time_entry": entries.rowcount, "absence": absences.rowcount}
-    models: dict[str, Any] = {
-        "project": Project, "resource": Resource, "application": Application,
-        "catalog_item": CatalogItem,
-    }  # fmt: skip
-    kept: dict[str, int] = {}
+    kept = _restore(session, batch.previous)
     # Newest first: a split project goes before its parent.
-    for table, model in models.items():
+    for table, model in REVERTIBLE.items():
         for record_id in sorted(batch.created.get(table, []), reverse=True):
+            if model is ProjectPhase and session.scalar(
+                select(PlanAllocation.id).where(PlanAllocation.project_phase_id == record_id)
+            ):  # deleting the phase would cascade to plans stored afterwards
+                kept[table] = kept.get(table, 0) + 1
+                continue
             try:
                 with session.begin_nested():
                     session.execute(delete(model).where(model.id == record_id))
@@ -427,3 +482,46 @@ def revert_batch(session: Session, batch: ImportBatch, *, actor_id: int | None =
         },
     )
     session.flush()
+
+
+REVERTIBLE: dict[str, Any] = {
+    "project_phase": ProjectPhase, "project": Project, "resource": Resource,
+    "application": Application, "portfolio": Portfolio, "catalog_item": CatalogItem,
+}  # fmt: skip
+
+
+def _delete(session: Session, statement: Any) -> int:
+    result: CursorResult[Any] = session.execute(statement)  # type: ignore[assignment]
+    return result.rowcount
+
+
+def dump(value: object) -> object:
+    """JSON form of a column value, for ``ImportBatch.previous``."""
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return str(value)
+    return value
+
+
+def _restore(session: Session, previous: dict[str, Any]) -> dict[str, int]:
+    """Put back overwritten values unless someone changed them after the import."""
+    kept: dict[str, int] = {}
+    for table, records in previous.items():
+        model = REVERTIBLE[table]
+        for record_id, columns in records.items():
+            record = session.get(model, int(record_id))
+            if record is None:
+                continue
+            for column, (old, new) in columns.items():
+                if dump(getattr(record, column)) != new:
+                    kept[f"{table}.{column}"] = kept.get(f"{table}.{column}", 0) + 1
+                    continue
+                python_type = model.__table__.c[column].type.python_type
+                if old is not None and python_type is date:
+                    old = date.fromisoformat(old)
+                elif old is not None and python_type is Decimal:
+                    old = Decimal(old)
+                setattr(record, column, old)
+    session.flush()
+    return kept
