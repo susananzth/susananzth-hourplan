@@ -4,7 +4,7 @@ Nothing here commits except through ``transaction``; authorisation (who may touc
 entries) is decided by the caller, which tells us whether the editor owns the entry.
 """
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any, Self
@@ -15,10 +15,11 @@ from sqlalchemy.orm import Session
 
 from hourplan.audit import services as audit
 from hourplan.audit.models import AuditAction
+from hourplan.catalogs.models import CatalogItem, CatalogKind
 from hourplan.db import transaction
 from hourplan.policies.models import Holiday, WorkPolicy
 from hourplan.policies.services import policy_at
-from hourplan.projects.models import ProjectPhase
+from hourplan.projects.models import Project, ProjectPhase
 from hourplan.resources.models import Resource
 from hourplan.timesheet.models import Absence, ApprovalStatus, EntrySource, TimeEntry
 
@@ -316,3 +317,194 @@ def working_days(session: Session, start: date, end: date) -> list[date]:
     )
     days = (start + timedelta(days=n) for n in range((end - start).days + 1))
     return [d for d in days if d.weekday() < 5 and d not in holidays]
+
+
+@dataclass(frozen=True)
+class RowKey:
+    """A grid row: a project or an activity bucket, optionally with a phase and task type."""
+
+    project_id: int | None = None
+    activity_bucket_id: int | None = None
+    project_phase_id: int | None = None
+    task_type_id: int | None = None
+
+
+@dataclass(frozen=True)
+class Cell:
+    day: date
+    hours: Decimal
+    entry_id: int | None
+    # Several entries on one cell cannot be edited as a single number.
+    multiple: bool = False
+
+
+@dataclass(frozen=True)
+class GridRow:
+    key: RowKey
+    label: str
+    cells: list[Cell]
+
+    @property
+    def total(self) -> Decimal:
+        return sum((c.hours for c in self.cells), Decimal(0))
+
+
+@dataclass(frozen=True)
+class WeekGrid:
+    days: list[date]
+    rows: list[GridRow]
+    summaries: list[DaySummary]
+
+    @property
+    def total(self) -> Decimal:
+        return sum((s.worked for s in self.summaries), Decimal(0))
+
+
+def week_start(day: date) -> date:
+    return day - timedelta(days=day.weekday())
+
+
+def _row_label(
+    project: Project | None, bucket: CatalogItem | None, phase: ProjectPhase | None
+) -> str:
+    label = f"{project.code} · {project.title}" if project else (bucket.name if bucket else "?")
+    return f"{label} ({phase.name})" if phase else label
+
+
+def week_grid(
+    session: Session, resource: Resource, start: date, *, extra_rows: list[RowKey] | None = None
+) -> WeekGrid:
+    """Seven days of the resource, one row per distinct target; ``extra_rows`` are shown empty."""
+    start = week_start(start)
+    days = [start + timedelta(days=n) for n in range(7)]
+    entries = session.scalars(
+        select(TimeEntry)
+        .where(TimeEntry.resource_id == resource.id, TimeEntry.work_date.between(days[0], days[-1]))
+        .order_by(TimeEntry.id)
+    ).all()
+    grouped: dict[RowKey, dict[date, list[TimeEntry]]] = {}
+    for item in entries:
+        key = RowKey(
+            item.project_id, item.activity_bucket_id, item.project_phase_id, item.task_type_id
+        )
+        grouped.setdefault(key, {}).setdefault(item.work_date, []).append(item)
+    for key in extra_rows or []:
+        grouped.setdefault(key, {})
+
+    projects = {
+        p.id: p
+        for p in session.scalars(
+            select(Project).where(Project.id.in_({k.project_id for k in grouped if k.project_id}))
+        )
+    }
+    buckets = {
+        b.id: b
+        for b in session.scalars(
+            select(CatalogItem).where(
+                CatalogItem.id.in_({k.activity_bucket_id for k in grouped if k.activity_bucket_id})
+            )
+        )
+    }
+    phases = {
+        p.id: p
+        for p in session.scalars(
+            select(ProjectPhase).where(
+                ProjectPhase.id.in_({k.project_phase_id for k in grouped if k.project_phase_id})
+            )
+        )
+    }
+    rows = []
+    for key, by_day in grouped.items():
+        cells = []
+        for day in days:
+            found = by_day.get(day, [])
+            cells.append(
+                Cell(
+                    day=day,
+                    hours=sum((e.hours for e in found), Decimal(0)),
+                    entry_id=found[0].id if len(found) == 1 else None,
+                    multiple=len(found) > 1,
+                )
+            )
+        label = _row_label(
+            projects.get(key.project_id or 0),
+            buckets.get(key.activity_bucket_id or 0),
+            phases.get(key.project_phase_id or 0),
+        )
+        rows.append(GridRow(key=key, label=label, cells=cells))
+    rows.sort(key=lambda r: r.label.lower())
+    return WeekGrid(days, rows, [day_summary(session, resource, d) for d in days])
+
+
+def set_cell(
+    session: Session,
+    resource_id: int,
+    key: RowKey,
+    day: date,
+    hours: Decimal,
+    *,
+    actor_id: int | None,
+) -> DaySummary:
+    """Set the hours of one grid cell: create, change or (with 0) delete its single entry."""
+    resource = _resource(session, resource_id)
+    found = session.scalars(
+        select(TimeEntry).where(
+            TimeEntry.resource_id == resource_id,
+            TimeEntry.work_date == day,
+            TimeEntry.project_id.is_not_distinct_from(key.project_id),
+            TimeEntry.activity_bucket_id.is_not_distinct_from(key.activity_bucket_id),
+            TimeEntry.project_phase_id.is_not_distinct_from(key.project_phase_id),
+            TimeEntry.task_type_id.is_not_distinct_from(key.task_type_id),
+        )
+    ).all()
+    if len(found) > 1:
+        raise EntryError("The cell has several entries and cannot be edited as one")
+    if not found:
+        if hours == 0:
+            return day_summary(session, resource, day)
+        data = EntryData(work_date=day, hours=hours, **asdict(key))
+        return create_entry(session, resource_id, data, actor_id=actor_id)[1]
+    current = found[0]
+    if hours == 0:
+        delete_entry(session, current.id, actor_id=actor_id, is_owner=True)
+        return day_summary(session, resource, day)
+    data = EntryData(
+        **{**{k: getattr(current, k) for k in _EDITABLE}, "hours": hours},
+    )
+    return update_entry(session, current.id, data, actor_id=actor_id, is_owner=True)[1]
+
+
+@dataclass(frozen=True)
+class Target:
+    key: RowKey
+    label: str
+
+
+def search_targets(session: Session, text: str, *, limit: int = 10) -> list[Target]:
+    """Open projects or tickets by code or title, and active activity buckets by name."""
+    text = text.strip()
+    if not text:
+        return []
+    pattern = f"%{text.replace('%', r'\%').replace('_', r'\_')}%"
+    projects = session.scalars(
+        select(Project)
+        .where(
+            Project.closed_on.is_(None),
+            Project.code.ilike(pattern) | Project.title.ilike(pattern),
+        )
+        .order_by(Project.code)
+        .limit(limit)
+    )
+    buckets = session.scalars(
+        select(CatalogItem)
+        .where(
+            CatalogItem.kind == CatalogKind.ACTIVITY_BUCKET.value,
+            CatalogItem.is_active.is_(True),
+            CatalogItem.name.ilike(pattern),
+        )
+        .order_by(CatalogItem.name)
+        .limit(limit)
+    )
+    found = [Target(RowKey(project_id=p.id), _row_label(p, None, None)) for p in projects]
+    found += [Target(RowKey(activity_bucket_id=b.id), b.name) for b in buckets]
+    return found[:limit]
