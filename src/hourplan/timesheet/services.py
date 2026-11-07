@@ -10,7 +10,7 @@ from decimal import Decimal
 from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from hourplan.audit import services as audit
@@ -21,7 +21,15 @@ from hourplan.policies.models import Holiday, WorkPolicy
 from hourplan.policies.services import policy_at
 from hourplan.projects.models import Project, ProjectPhase
 from hourplan.resources.models import Resource
-from hourplan.timesheet.models import Absence, ApprovalStatus, EntrySource, TimeEntry
+from hourplan.timesheet.models import (
+    Absence,
+    ApprovalStatus,
+    EntrySource,
+    TimeEntry,
+    TimeFavorite,
+    TimeTemplate,
+    TimeTemplateItem,
+)
 
 DEFAULT_STANDARD_HOURS = Decimal(8)
 DEFAULT_WARNING_HOURS = Decimal(10)
@@ -508,3 +516,153 @@ def search_targets(session: Session, text: str, *, limit: int = 10) -> list[Targ
     found = [Target(RowKey(project_id=p.id), _row_label(p, None, None)) for p in projects]
     found += [Target(RowKey(activity_bucket_id=b.id), b.name) for b in buckets]
     return found[:limit]
+
+
+def target_label(session: Session, key: RowKey) -> str:
+    project = session.get(Project, key.project_id) if key.project_id else None
+    bucket = session.get(CatalogItem, key.activity_bucket_id) if key.activity_bucket_id else None
+    return _row_label(project, bucket, None)
+
+
+def _favorite_filter(resource_id: int, key: RowKey) -> tuple[Any, ...]:
+    return (
+        TimeFavorite.resource_id == resource_id,
+        TimeFavorite.project_id.is_not_distinct_from(key.project_id),
+        TimeFavorite.activity_bucket_id.is_not_distinct_from(key.activity_bucket_id),
+        TimeFavorite.task_type_id.is_not_distinct_from(key.task_type_id),
+    )
+
+
+def toggle_favorite(session: Session, resource_id: int, key: RowKey) -> bool:
+    """Pin or unpin a target; returns whether it is now a favourite."""
+    _resource(session, resource_id)
+    if (key.project_id is None) == (key.activity_bucket_id is None):
+        raise EntryError("A favourite needs exactly one project or activity bucket")
+    with transaction(session):
+        found = session.scalars(select(TimeFavorite).where(*_favorite_filter(resource_id, key)))
+        existing = found.first()
+        if existing:
+            session.delete(existing)
+            return False
+        session.add(
+            TimeFavorite(
+                resource_id=resource_id,
+                project_id=key.project_id,
+                activity_bucket_id=key.activity_bucket_id,
+                task_type_id=key.task_type_id,
+            )
+        )
+        return True
+
+
+def favorite_keys(session: Session, resource_id: int) -> list[RowKey]:
+    rows = session.scalars(
+        select(TimeFavorite)
+        .where(TimeFavorite.resource_id == resource_id)
+        .order_by(TimeFavorite.id)
+    )
+    return [RowKey(f.project_id, f.activity_bucket_id, None, f.task_type_id) for f in rows]
+
+
+def favorites(session: Session, resource_id: int) -> list[Target]:
+    return [Target(k, target_label(session, k)) for k in favorite_keys(session, resource_id)]
+
+
+class TemplateError(EntryError):
+    pass
+
+
+def _template(session: Session, resource_id: int, template_id: int) -> TimeTemplate:
+    template = session.get(TimeTemplate, template_id)
+    if template is None or template.resource_id != resource_id:
+        raise TemplateError("Unknown template")
+    return template
+
+
+def save_day_as_template(session: Session, resource_id: int, name: str, day: date) -> TimeTemplate:
+    """Store the entries of ``day`` as a named template (an existing name is replaced)."""
+    name = name.strip()
+    if not name:
+        raise TemplateError("A template needs a name")
+    entries = session.scalars(
+        select(TimeEntry)
+        .where(TimeEntry.resource_id == resource_id, TimeEntry.work_date == day)
+        .order_by(TimeEntry.id)
+    ).all()
+    if not entries:
+        raise TemplateError("The day has no entries to save")
+    with transaction(session):
+        template = session.scalars(
+            select(TimeTemplate).where(
+                TimeTemplate.resource_id == resource_id, TimeTemplate.name == name
+            )
+        ).one_or_none()
+        if template is None:
+            template = TimeTemplate(resource_id=resource_id, name=name)
+            session.add(template)
+            session.flush()
+        else:
+            session.execute(
+                delete(TimeTemplateItem).where(TimeTemplateItem.template_id == template.id)
+            )
+        session.add_all(
+            TimeTemplateItem(
+                template_id=template.id,
+                project_id=e.project_id,
+                activity_bucket_id=e.activity_bucket_id,
+                task_type_id=e.task_type_id,
+                hours=e.hours,
+                description=e.description,
+            )
+            for e in entries
+        )
+    return template
+
+
+def list_templates(session: Session, resource_id: int) -> list[TimeTemplate]:
+    return list(
+        session.scalars(
+            select(TimeTemplate)
+            .where(TimeTemplate.resource_id == resource_id)
+            .order_by(TimeTemplate.name)
+        )
+    )
+
+
+def apply_template(
+    session: Session, resource_id: int, template_id: int, day: date, *, actor_id: int | None
+) -> list[TimeEntry]:
+    """Add the template's entries on ``day``. Like repeat, it refuses a day that has hours."""
+    template = _template(session, resource_id, template_id)
+    resource = _resource(session, resource_id)
+    if day_summary(session, resource, day).worked:
+        raise EntryError("The day already has hours")
+    items = session.scalars(
+        select(TimeTemplateItem)
+        .where(TimeTemplateItem.template_id == template.id)
+        .order_by(TimeTemplateItem.id)
+    ).all()
+    with transaction(session):
+        created = [
+            TimeEntry(
+                resource_id=resource_id,
+                work_date=day,
+                project_id=i.project_id,
+                activity_bucket_id=i.activity_bucket_id,
+                task_type_id=i.task_type_id,
+                hours=i.hours,
+                description=i.description,
+                source=EntrySource.MANUAL.value,
+                created_by_id=actor_id,
+            )
+            for i in items
+        ]
+        session.add_all(created)
+        session.flush()
+    return created
+
+
+def delete_template(session: Session, resource_id: int, template_id: int) -> None:
+    template = _template(session, resource_id, template_id)
+    with transaction(session):
+        session.delete(template)

@@ -14,12 +14,13 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     false,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from hourplan.db import Base, Hours, IdMixin, TimestampMixin, enum_check
+from hourplan.db import Base, Hours, IdMixin, TimestampMixin, enum_check, not_blank
 
 QUARTER_HOURS = "hours * 4 = trunc(hours * 4)"
 
@@ -172,3 +173,50 @@ class TimeBankLedger(IdMixin, TimestampMixin, Base):
     created_by_id: Mapped[int | None] = mapped_column(
         ForeignKey("user_account.id", ondelete="SET NULL")
     )
+
+
+class TimeFavorite(IdMixin, TimestampMixin, Base):
+    """A project or activity bucket a person pinned, to add it to the grid in one click."""
+
+    __tablename__ = "time_favorite"
+    __table_args__ = (
+        CheckConstraint("num_nonnulls(project_id, activity_bucket_id) = 1", name="one_target"),
+        UniqueConstraint(
+            "resource_id",
+            "project_id",
+            "activity_bucket_id",
+            "task_type_id",
+            postgresql_nulls_not_distinct=True,
+        ),
+    )
+
+    resource_id: Mapped[int] = mapped_column(ForeignKey("resource.id", ondelete="CASCADE"))
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("project.id"))
+    activity_bucket_id: Mapped[int | None] = mapped_column(ForeignKey("catalog_item.id"))
+    task_type_id: Mapped[int | None] = mapped_column(ForeignKey("catalog_item.id"))
+
+
+class TimeTemplate(IdMixin, TimestampMixin, Base):
+    """A named typical day ("sprint day"): applying it creates its entries on a date."""
+
+    __tablename__ = "time_template"
+    __table_args__ = (UniqueConstraint("resource_id", "name"), not_blank("name"))
+
+    resource_id: Mapped[int] = mapped_column(ForeignKey("resource.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(80))
+
+
+class TimeTemplateItem(IdMixin, Base):
+    __tablename__ = "time_template_item"
+    __table_args__ = (
+        CheckConstraint(f"hours > 0 AND hours <= 24 AND {QUARTER_HOURS}", name="hours"),
+        CheckConstraint("num_nonnulls(project_id, activity_bucket_id) = 1", name="one_target"),
+        Index(None, "template_id"),
+    )
+
+    template_id: Mapped[int] = mapped_column(ForeignKey("time_template.id", ondelete="CASCADE"))
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("project.id"))
+    activity_bucket_id: Mapped[int | None] = mapped_column(ForeignKey("catalog_item.id"))
+    task_type_id: Mapped[int | None] = mapped_column(ForeignKey("catalog_item.id"))
+    hours: Mapped[Decimal] = mapped_column(Hours)
+    description: Mapped[str | None] = mapped_column(Text)

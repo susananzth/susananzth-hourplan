@@ -221,3 +221,84 @@ def test_malformed_row_key_is_a_bad_request(client: FlaskClient, me: Resource) -
     )
 
     assert response.status_code == 400
+
+
+def web(client: FlaskClient, path: str, data: dict[str, object]) -> str:
+    response = client.post(
+        path,
+        data={**data, "semana": "2026-06-15", "csrf_token": csrf_token(client, WEEK)},
+        headers={"HX-Request": "true"},
+    )
+    assert response.status_code == 200
+    return response.get_data(as_text=True)
+
+
+def test_favorite_toggles_and_is_offered_as_a_shortcut(
+    client: FlaskClient, session: Session, me: Resource, project: Project
+) -> None:
+    key = RowKey(project_id=project.id)
+    assert services.toggle_favorite(session, me.id, key) is True
+    assert [f.label for f in services.favorites(session, me.id)] == ["PROY-0001-2026 · Portal"]
+    assert 'aria-pressed="false"' not in client.get(WEEK).get_data(as_text=True)
+
+    assert services.toggle_favorite(session, me.id, key) is False
+    assert services.favorites(session, me.id) == []
+
+
+def test_favorite_over_the_web_and_with_a_bad_target(
+    client: FlaskClient, session: Session, me: Resource, project: Project
+) -> None:
+    web(client, "/horas/favorito", {"fila": f"{project.id},,,"})
+    assert len(services.favorites(session, me.id)) == 1
+
+    html = web(client, "/horas/favorito", {"fila": ",,,"})
+    assert "text-red-800" in html
+
+
+def test_template_saves_a_day_and_applies_it_once(
+    session: Session, me: Resource, project: Project
+) -> None:
+    key = RowKey(project_id=project.id)
+    services.set_cell(session, me.id, key, MONDAY, Decimal(6), actor_id=None)
+
+    template = services.save_day_as_template(session, me.id, "Día típico", MONDAY)
+    again = services.save_day_as_template(session, me.id, "Día típico", MONDAY)
+    assert again.id == template.id
+
+    tuesday = date(2026, 6, 16)
+    created = services.apply_template(session, me.id, template.id, tuesday, actor_id=None)
+    assert [e.hours for e in created] == [Decimal(6)]
+    with pytest.raises(services.EntryError):
+        services.apply_template(session, me.id, template.id, tuesday, actor_id=None)
+
+
+def test_template_rules(session: Session, me: Resource, project: Project) -> None:
+    with pytest.raises(services.TemplateError):
+        services.save_day_as_template(session, me.id, " ", MONDAY)
+    with pytest.raises(services.TemplateError):
+        services.save_day_as_template(session, me.id, "Vacía", MONDAY)
+    with pytest.raises(services.TemplateError):
+        services.delete_template(session, me.id, 999_999)
+
+
+def test_templates_over_the_web_and_not_shared_between_people(
+    client: FlaskClient, session: Session, me: Resource, project: Project
+) -> None:
+    services.set_cell(
+        session, me.id, RowKey(project_id=project.id), MONDAY, Decimal(4), actor_id=None
+    )
+    assert "Plantilla guardada" in web(
+        client, "/horas/plantilla/guardar", {"nombre": "Base", "dia": "2026-06-15"}
+    )
+    template = services.list_templates(session, me.id)[0]
+    other = Resource(display_name="Otra")
+    session.add(other)
+    session.commit()
+    with pytest.raises(services.TemplateError):
+        services.apply_template(session, other.id, template.id, MONDAY, actor_id=None)
+
+    assert "Plantilla aplicada" in web(
+        client, "/horas/plantilla/aplicar", {"plantilla": template.id, "dia": "2026-06-16"}
+    )
+    assert "Plantilla borrada" in web(client, "/horas/plantilla/borrar", {"plantilla": template.id})
+    assert services.list_templates(session, me.id) == []

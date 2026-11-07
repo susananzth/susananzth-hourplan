@@ -63,6 +63,13 @@ def _hours(raw: str) -> Decimal:
         raise ValueError("Escribe las horas como número, por ejemplo 1,5.") from None
 
 
+def _int(raw: str | None) -> int:
+    try:
+        return int(raw or "")
+    except ValueError:
+        abort(400)
+
+
 def _extras() -> list[RowKey]:
     return [
         decode_key(raw)
@@ -87,6 +94,9 @@ def _render(resource: Resource, error: str | None = None, notice: str | None = N
         today=_today(),
         extras=[encode_key(k) for k in extras],
         encode_key=encode_key,
+        favorites=services.favorites(db.session, resource.id),
+        favorite_keys={encode_key(k) for k in services.favorite_keys(db.session, resource.id)},
+        templates=services.list_templates(db.session, resource.id),
         error=error,
         notice=notice,
     )
@@ -141,6 +151,69 @@ def repeat() -> str:
     return _render(resource, notice="Se copió el último día con horas.")
 
 
+@bp.post("/favorito")
+@roles_required(*WRITERS)
+def favorite() -> str:
+    resource = _resource()
+    if resource is None:
+        abort(404)
+    try:
+        services.toggle_favorite(db.session, resource.id, decode_key(request.form.get("fila", "")))
+    except services.EntryError as err:
+        return _render(resource, error=_cell_error(err))
+    return _render(resource)
+
+
+@bp.post("/plantilla/guardar")
+@roles_required(*WRITERS)
+def template_save() -> str:
+    resource = _resource()
+    if resource is None:
+        abort(404)
+    try:
+        services.save_day_as_template(
+            db.session,
+            resource.id,
+            request.form.get("nombre", ""),
+            _day(request.form.get("dia"), _today()),
+        )
+    except services.EntryError as err:
+        return _render(resource, error=_cell_error(err))
+    return _render(resource, notice="Plantilla guardada.")
+
+
+@bp.post("/plantilla/aplicar")
+@roles_required(*WRITERS)
+def template_apply() -> str:
+    resource = _resource()
+    if resource is None:
+        abort(404)
+    try:
+        services.apply_template(
+            db.session,
+            resource.id,
+            _int(request.form.get("plantilla")),
+            _day(request.form.get("dia"), _today()),
+            actor_id=int(current_user.id),
+        )
+    except services.EntryError as err:
+        return _render(resource, error=_cell_error(err))
+    return _render(resource, notice="Plantilla aplicada.")
+
+
+@bp.post("/plantilla/borrar")
+@roles_required(*WRITERS)
+def template_delete() -> str:
+    resource = _resource()
+    if resource is None:
+        abort(404)
+    try:
+        services.delete_template(db.session, resource.id, _int(request.form.get("plantilla")))
+    except services.EntryError as err:
+        return _render(resource, error=_cell_error(err))
+    return _render(resource, notice="Plantilla borrada.")
+
+
 @bp.get("/buscar")
 @roles_required(*WRITERS)
 def search() -> str:
@@ -165,5 +238,8 @@ def _cell_error(err: Exception) -> str:
             "The day already has hours": "Ese día ya tiene horas.",
             "There is no earlier day to repeat": "No hay un día anterior para repetir.",
             "The source day has no entries": "El día anterior no tiene horas.",
+            "A template needs a name": "Escribe un nombre para la plantilla.",
+            "The day has no entries to save": "Ese día no tiene horas para guardar.",
+            "Unknown template": "No se encontró la plantilla.",
         }.get(str(err), "No se pudo guardar: la celda tiene varias entradas.")
     return str(err)
