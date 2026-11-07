@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 
 from hourplan.db import transaction
 from hourplan.extensions import db
-from hourplan.imports import services
+from hourplan.imports import plan, services
 from hourplan.imports.mapping import load_mapping
 from hourplan.imports.models import ImportBatch, ImportIssue
 
@@ -26,6 +26,23 @@ def import_hours_command(file: Path) -> None:
         mapping = load_mapping(_mapping_path())
         with transaction(db.session):
             batch = services.import_hours(db.session, file, mapping=mapping)
+            batch_id, stats = batch.id, batch.stats
+    except (services.ImportRejectedError, ValueError) as err:
+        raise click.ClickException(str(err)) from err
+    click.echo(f"Lote {batch_id}:")
+    for name, value in sorted(stats.items()):
+        click.echo(f"  {name}: {value}")
+    click.echo(f"Informe: flask import-report {batch_id}")
+
+
+@bp.cli.command("import-plan")
+@click.argument("file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+def import_plan_command(file: Path) -> None:
+    """Import the backlog and planning sheets of an Excel file (changed plans get a version)."""
+    try:
+        mapping = load_mapping(_mapping_path())
+        with transaction(db.session):
+            batch = plan.import_plan(db.session, file, mapping=mapping)
             batch_id, stats = batch.id, batch.stats
     except (services.ImportRejectedError, ValueError) as err:
         raise click.ClickException(str(err)) from err

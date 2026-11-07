@@ -158,6 +158,8 @@ class Project(IdMixin, TimestampMixin, Base):
     # Reserve for incidents and tickets during the project, kept apart from the base effort.
     contingency_hours: Mapped[Decimal | None] = mapped_column(LongHours)
     closed_on: Mapped[date | None] = mapped_column(Date)
+    # Free-text log of the project (the "bitácora" column of the backlog sheet).
+    notes: Mapped[str | None] = mapped_column(Text)
     created_by_id: Mapped[int | None] = mapped_column(
         ForeignKey("user_account.id", ondelete="SET NULL")
     )
