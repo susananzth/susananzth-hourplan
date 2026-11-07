@@ -21,6 +21,7 @@ from hourplan.policies.models import Holiday, WorkPolicy
 from hourplan.policies.services import policy_at
 from hourplan.projects.models import Project, ProjectPhase
 from hourplan.resources.models import Resource
+from hourplan.shared.labels import label
 from hourplan.timesheet.models import (
     Absence,
     ApprovalStatus,
@@ -74,7 +75,7 @@ class EntryData(BaseModel):
     @classmethod
     def _quarter_hours(cls, value: Decimal) -> Decimal:
         if value % QUARTER != 0:
-            raise ValueError("hours must be a multiple of 0.25")
+            raise ValueError(f"{label('hours')} debe ser múltiplo de 0,25.")
         return value
 
     @field_validator("description")
@@ -85,9 +86,12 @@ class EntryData(BaseModel):
     @model_validator(mode="after")
     def _one_target(self) -> Self:
         if (self.project_id is None) == (self.activity_bucket_id is None):
-            raise ValueError("exactly one of project_id or activity_bucket_id is required")
+            raise ValueError(
+                f"Indica {label('project_id').lower()} o {label('activity_bucket_id').lower()}, "
+                "pero no ambos."
+            )
         if self.project_phase_id is not None and self.project_id is None:
-            raise ValueError("a phase requires a project")
+            raise ValueError(f"{label('project_phase_id')} necesita {label('project_id').lower()}.")
         return self
 
 
@@ -153,7 +157,7 @@ def day_summary(session: Session, resource: Resource, day: date) -> DaySummary:
 def _resource(session: Session, resource_id: int) -> Resource:
     resource = session.get(Resource, resource_id)
     if resource is None:
-        raise EntryError("Unknown resource")
+        raise EntryError("No se encontró el recurso.")
     return resource
 
 
@@ -162,7 +166,9 @@ def _check_phase(session: Session, data: EntryData) -> None:
         return
     phase = session.get(ProjectPhase, data.project_phase_id)
     if phase is None or phase.project_id != data.project_id:
-        raise EntryError("The phase does not belong to the project")
+        raise EntryError(
+            f"{label('project_phase_id')} no pertenece a ese {label('project_id').lower()}."
+        )
 
 
 def create_entry(
@@ -192,7 +198,7 @@ def create_entry(
 def _get_entry(session: Session, entry_id: int) -> TimeEntry:
     entry = session.get(TimeEntry, entry_id)
     if entry is None:
-        raise EntryNotFoundError("Unknown time entry")
+        raise EntryNotFoundError("No se encontró esa entrada de horas.")
     return entry
 
 
@@ -290,16 +296,16 @@ def repeat_day(
     resource = _resource(session, resource_id)
     source_day = source_day or previous_entry_day(session, resource_id, target_day)
     if source_day is None or source_day == target_day:
-        raise EntryError("There is no earlier day to repeat")
+        raise EntryError("No hay un día anterior con horas para repetir.")
     if day_summary(session, resource, target_day).worked:
-        raise EntryError("The day already has hours")
+        raise EntryError("Ese día ya tiene horas.")
     originals = session.scalars(
         select(TimeEntry)
         .where(TimeEntry.resource_id == resource_id, TimeEntry.work_date == source_day)
         .order_by(TimeEntry.id)
     ).all()
     if not originals:
-        raise EntryError("The source day has no entries")
+        raise EntryError("El día que se quiere repetir no tiene horas.")
     with transaction(session):
         copies = [
             TimeEntry(
@@ -466,7 +472,7 @@ def set_cell(
         )
     ).all()
     if len(found) > 1:
-        raise EntryError("The cell has several entries and cannot be edited as one")
+        raise EntryError("Ese día tiene varias entradas; no se puede editar como un solo número.")
     if not found:
         if hours == 0:
             return day_summary(session, resource, day)
@@ -537,7 +543,9 @@ def toggle_favorite(session: Session, resource_id: int, key: RowKey) -> bool:
     """Pin or unpin a target; returns whether it is now a favourite."""
     _resource(session, resource_id)
     if (key.project_id is None) == (key.activity_bucket_id is None):
-        raise EntryError("A favourite needs exactly one project or activity bucket")
+        raise EntryError(
+            f"Un favorito es {label('project_id').lower()} o {label('activity_bucket_id').lower()}."
+        )
     with transaction(session):
         found = session.scalars(select(TimeFavorite).where(*_favorite_filter(resource_id, key)))
         existing = found.first()
@@ -575,7 +583,7 @@ class TemplateError(EntryError):
 def _template(session: Session, resource_id: int, template_id: int) -> TimeTemplate:
     template = session.get(TimeTemplate, template_id)
     if template is None or template.resource_id != resource_id:
-        raise TemplateError("Unknown template")
+        raise TemplateError("No se encontró la plantilla.")
     return template
 
 
@@ -583,14 +591,14 @@ def save_day_as_template(session: Session, resource_id: int, name: str, day: dat
     """Store the entries of ``day`` as a named template (an existing name is replaced)."""
     name = name.strip()
     if not name:
-        raise TemplateError("A template needs a name")
+        raise TemplateError("Escribe un nombre para la plantilla.")
     entries = session.scalars(
         select(TimeEntry)
         .where(TimeEntry.resource_id == resource_id, TimeEntry.work_date == day)
         .order_by(TimeEntry.id)
     ).all()
     if not entries:
-        raise TemplateError("The day has no entries to save")
+        raise TemplateError("Ese día no tiene horas para guardar.")
     with transaction(session):
         template = session.scalars(
             select(TimeTemplate).where(
@@ -636,7 +644,7 @@ def apply_template(
     template = _template(session, resource_id, template_id)
     resource = _resource(session, resource_id)
     if day_summary(session, resource, day).worked:
-        raise EntryError("The day already has hours")
+        raise EntryError("Ese día ya tiene horas.")
     items = session.scalars(
         select(TimeTemplateItem)
         .where(TimeTemplateItem.template_id == template.id)

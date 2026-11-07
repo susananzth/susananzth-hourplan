@@ -11,6 +11,7 @@ from hourplan.audit import services as audit
 from hourplan.audit.models import AuditAction
 from hourplan.db import transaction
 from hourplan.resources.models import Resource
+from hourplan.shared.labels import label
 from hourplan.timesheet import bank
 from hourplan.timesheet.models import Absence, AbsenceType, ApprovalStatus
 
@@ -47,7 +48,7 @@ class AbsenceData(BaseModel):
     @classmethod
     def _quarter_hours(cls, value: Decimal | None) -> Decimal | None:
         if value is not None and value % Decimal("0.25") != 0:
-            raise ValueError("hours_per_day must be a multiple of 0.25")
+            raise ValueError(f"{label('hours_per_day')} debe ser múltiplo de 0,25.")
         return value
 
     @field_validator("notes")
@@ -58,14 +59,16 @@ class AbsenceData(BaseModel):
     @model_validator(mode="after")
     def _dates(self) -> AbsenceData:
         if self.end_on < self.start_on:
-            raise ValueError("end_on must not be before start_on")
+            raise ValueError(
+                f"{label('end_on')} no puede ser anterior a {label('start_on').lower()}."
+            )
         return self
 
 
 def _get(session: Session, absence_id: int) -> Absence:
     absence = session.get(Absence, absence_id)
     if absence is None:
-        raise AbsenceError("Unknown absence")
+        raise AbsenceError("No se encontró esa ausencia.")
     return absence
 
 
@@ -78,7 +81,7 @@ def request_absence(
     session: Session, resource_id: int, data: AbsenceData, *, actor_id: int | None
 ) -> Absence:
     if session.get(Resource, resource_id) is None:
-        raise AbsenceError("Unknown resource")
+        raise AbsenceError("No se encontró el recurso.")
     overlapping = session.scalar(
         select(Absence.id)
         .where(
@@ -90,7 +93,7 @@ def request_absence(
         .limit(1)
     )
     if overlapping:
-        raise OverlapError("The resource already has an absence on those days")
+        raise OverlapError("Ya hay una ausencia en esas fechas.")
     with transaction(session):
         absence = Absence(
             resource_id=resource_id,
@@ -125,9 +128,9 @@ def decide_absence(
     """Approve or reject a pending request; rejecting needs a reason the requester can read."""
     absence = _get(session, absence_id)
     if absence.status != ApprovalStatus.PENDING.value:
-        raise AlreadyDecidedError("The absence was already decided")
+        raise AlreadyDecidedError("Esa solicitud ya fue resuelta.")
     if _subject(session, absence) == decider_id:
-        raise SelfApprovalError("Nobody decides their own absence")
+        raise SelfApprovalError("No puedes decidir tu propia solicitud.")
     status = ApprovalStatus.APPROVED if approve else ApprovalStatus.REJECTED
     with transaction(session):
         audit.record(
@@ -155,9 +158,9 @@ def cancel_absence(
     """The owner withdraws a request, or an approved absence that has not started."""
     absence = _get(session, absence_id)
     if absence.resource_id != resource_id:
-        raise AbsenceError("Unknown absence")
+        raise AbsenceError("No se encontró esa ausencia.")
     if absence.status == ApprovalStatus.APPROVED.value and absence.start_on <= today:
-        raise AbsenceError("An absence that already started cannot be cancelled")
+        raise AbsenceError("Una ausencia que ya comenzó no se puede cancelar.")
     with transaction(session):
         audit.record(
             session,

@@ -57,7 +57,7 @@ class AlreadyDecidedError(BankError):
 def _resource(session: Session, resource_id: int) -> Resource:
     resource = session.get(Resource, resource_id)
     if resource is None:
-        raise BankError("Unknown resource")
+        raise BankError("No se encontró el recurso.")
     return resource
 
 
@@ -154,11 +154,11 @@ def claim_overtime(
     """Ask to bank the hours above the working day (voluntary or required by the leader)."""
     resource = _resource(session, resource_id)
     if _claimed(session, resource_id, day, BankReason.OVERTIME):
-        raise AlreadyClaimedError("The overtime of that day was already claimed")
+        raise AlreadyClaimedError("Las horas extra de ese día ya fueron reclamadas.")
     summary = services.day_summary(session, resource, day)
     extra = summary.overtime - _claimed(session, resource_id, day, BankReason.CONTINGENCY)
     if extra <= 0:
-        raise NothingToClaimError("There are no hours above the working day")
+        raise NothingToClaimError("Ese día no tiene horas sobre la jornada para reclamar.")
     return _add(
         session,
         resource,
@@ -176,10 +176,10 @@ def claim_contingency(
 ) -> TimeBankLedger:
     resource = _resource(session, resource_id)
     if _claimed(session, resource_id, day, BankReason.CONTINGENCY):
-        raise AlreadyClaimedError("The contingency of that day was already claimed")
+        raise AlreadyClaimedError("La contingencia de ese día ya fue reclamada.")
     hours = contingency_hours(session, resource_id, day)
     if hours <= 0:
-        raise NothingToClaimError("There are no contingency hours on that day")
+        raise NothingToClaimError("Ese día no tiene horas de contingencia para reclamar.")
     return _add(session, resource, day, hours, BankReason.CONTINGENCY, actor_id=actor_id)
 
 
@@ -193,12 +193,12 @@ def decide(
 ) -> TimeBankLedger:
     movement = session.get(TimeBankLedger, movement_id)
     if movement is None:
-        raise BankError("Unknown movement")
+        raise BankError("No se encontró ese movimiento.")
     if movement.status != ApprovalStatus.PENDING.value:
-        raise AlreadyDecidedError("The movement was already decided")
+        raise AlreadyDecidedError("Ese movimiento ya fue resuelto.")
     resource = _resource(session, movement.resource_id)
     if resource.user_id == decider_id:
-        raise SelfApprovalError("Nobody decides their own movement")
+        raise SelfApprovalError("No puedes decidir tus propios movimientos.")
     status = ApprovalStatus.APPROVED if approve else ApprovalStatus.REJECTED
     with transaction(session):
         audit.record(
@@ -236,7 +236,7 @@ def charge_compensation(session: Session, absence: Absence, *, decider_id: int) 
     if hours <= 0:
         return
     if balance(session, absence.resource_id) < hours:
-        raise InsufficientBankError("The time bank does not cover that absence")
+        raise InsufficientBankError("El banco de horas no cubre ese día compensado.")
     session.add(
         TimeBankLedger(
             resource_id=absence.resource_id,

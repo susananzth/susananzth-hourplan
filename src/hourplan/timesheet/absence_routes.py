@@ -14,6 +14,7 @@ from hourplan.auth.permissions import roles_required
 from hourplan.auth.roles import Role
 from hourplan.extensions import db
 from hourplan.resources.models import Resource
+from hourplan.shared.labels import label, validation_message
 from hourplan.timesheet import absences, bank
 from hourplan.timesheet.models import AbsenceType
 
@@ -48,25 +49,13 @@ def _parse_hours(raw: str) -> Decimal | None:
     try:
         return Decimal(raw)
     except InvalidOperation:
-        raise ValueError("hours") from None
+        raise ValueError(f"{label('hours_per_day')}: escribe un número, por ejemplo 4,5.") from None
 
 
 def _error(err: Exception) -> str:
-    match err:
-        case absences.OverlapError():
-            return "Ya tienes una ausencia en esas fechas."
-        case absences.SelfApprovalError():
-            return "No puedes decidir tu propia solicitud."
-        case absences.AlreadyDecidedError():
-            return "Esa solicitud ya fue resuelta."
-        case bank.InsufficientBankError():
-            return "El banco de horas no cubre ese día compensado."
-        case absences.AbsenceError():
-            return "No se pudo completar la acción."
-        case ValidationError() | ValueError():
-            return "Revisa las fechas (fin no antes de inicio) y las horas (múltiplos de 0,25)."
-        case _:
-            return "No se pudo completar la acción."
+    if isinstance(err, ValidationError):
+        return validation_message(err)
+    return str(err)
 
 
 @bp.get("")

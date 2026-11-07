@@ -141,7 +141,7 @@ def test_request_over_the_web_and_lead_decides(
     assert post(client, "/ausencias", form).status_code == 302
     assert "Pendiente" in client.get("/ausencias").get_data(as_text=True)
     assert post(client, "/ausencias", form).status_code == 302
-    assert "ya tienes una ausencia" in client.get("/ausencias").get_data(as_text=True).lower()
+    assert "ya hay una ausencia" in client.get("/ausencias").get_data(as_text=True).lower()
     absence = session.scalars(select(Absence).where(Absence.resource_id == resource.id)).one()
 
     # A developer cannot decide.
@@ -159,7 +159,14 @@ def test_invalid_form_is_reported(
     response = post(client, "/ausencias", form)
 
     assert response.status_code == 302
-    assert "Revisa las fechas" in client.get("/ausencias").get_data(as_text=True)
+    assert "escribe un número" in client.get("/ausencias").get_data(as_text=True)
+
+    reversed_dates = {**form, "horas": ""}
+    post(client, "/ausencias", reversed_dates)
+    html = client.get("/ausencias").get_data(as_text=True)
+    assert "Hasta no puede ser anterior a desde." in html
+    assert "end_on" not in html
+    assert "Value error" not in html
 
 
 def test_lead_sees_and_decides_pending_requests(
@@ -211,7 +218,7 @@ def test_holiday_admin_screens(
     post(client, "/admin/feriados", {"fecha": "2026-09-18", "nombre": "Fiestas"}, "/admin/feriados")
     assert "Fiestas" in client.get("/admin/feriados?anio=2026").get_data(as_text=True)
     post(client, "/admin/feriados", {"fecha": "2026-09-18", "nombre": "Dup"}, "/admin/feriados")
-    assert "no se repite" in client.get("/admin/feriados").get_data(as_text=True)
+    assert "Ya hay un feriado en esa fecha" in client.get("/admin/feriados").get_data(as_text=True)
     post(client, "/admin/feriados", {"fecha": "mala", "nombre": "X"}, "/admin/feriados")
     holiday = session.scalars(select(Holiday)).one()
     post(client, f"/admin/feriados/{holiday.id}/borrar", {}, "/admin/feriados")

@@ -26,6 +26,7 @@ from hourplan.catalogs.models import (
 from hourplan.extensions import db
 from hourplan.policies import services as policies
 from hourplan.policies.models import EvaluationPolicy, WorkPolicy
+from hourplan.shared.labels import validation_message
 
 bp = Blueprint("admin", __name__, url_prefix="/admin", template_folder="templates")
 
@@ -94,14 +95,10 @@ def _message(err: Exception) -> str:
             return "La contraseña debe tener al menos 12 caracteres."
         case auth.SelfLockoutError():
             return "No puedes quitarte tu propio acceso de administración."
-        case policies.HolidayError():
-            return "No se pudo guardar el feriado: revisa la fecha y el nombre (no se repite)."
-        case policies.PolicyInForceError():
-            return "La política ya está vigente o la fecha es pasada: elige una fecha futura."
+        case policies.HolidayError() | policies.PolicyInForceError():
+            return str(err)
         case ValidationError():
-            return "Revisa los valores: " + "; ".join(
-                f"{'.'.join(map(str, e['loc']))}: {e['msg']}" for e in err.errors()
-            )
+            return validation_message(err)
         case _:
             return "No se pudo guardar: revisa los datos."
 
@@ -651,9 +648,12 @@ def holiday_add() -> Response:
     try:
         day = date.fromisoformat(request.form.get("fecha", ""))
         policies.add_holiday(db.session, day, request.form.get("nombre", ""), actor_id=_actor())
-    except (ValueError, policies.HolidayError) as err:
+    except policies.HolidayError as err:
         db.session.rollback()
-        _fail(err if isinstance(err, policies.HolidayError) else policies.HolidayError())
+        _fail(err)
+        return redirect(url_for("admin.holiday_list"))
+    except ValueError:
+        flash("La fecha no es válida.", "error")
         return redirect(url_for("admin.holiday_list"))
     return redirect(url_for("admin.holiday_list", anio=day.year))
 

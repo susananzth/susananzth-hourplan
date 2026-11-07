@@ -240,9 +240,9 @@ def test_bank_screen_claim_and_decision(
     assert "Movimientos por resolver" in html
 
     post(client, "/banco/reclamar", claim)
-    assert "ya fue reclamado" in client.get("/banco").get_data(as_text=True)
+    assert "ya fueron reclamadas" in client.get("/banco").get_data(as_text=True)
     post(client, "/banco/reclamar", {**claim, "motivo": "contingency"})
-    assert "no tiene horas" in client.get("/banco").get_data(as_text=True)
+    assert "no tiene horas de contingencia" in client.get("/banco").get_data(as_text=True)
 
     post(client, f"/banco/{waiting.id}/decidir", {"decision": "reject", "motivo_rechazo": ""})
     assert "escribe un motivo" in client.get("/banco").get_data(as_text=True)

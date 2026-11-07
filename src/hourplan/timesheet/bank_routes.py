@@ -40,19 +40,7 @@ def _resource() -> Resource | None:
 
 
 def _error(err: Exception) -> str:
-    match err:
-        case bank.NothingToClaimError():
-            return "Ese día no tiene horas para reclamar."
-        case bank.AlreadyClaimedError():
-            return "Ese día ya fue reclamado."
-        case bank.SelfApprovalError():
-            return "No puedes decidir tus propios movimientos."
-        case bank.AlreadyDecidedError():
-            return "Ese movimiento ya fue resuelto."
-        case bank.InsufficientBankError():
-            return "El banco de horas no cubre esa ausencia."
-        case _:
-            return "No se pudo completar la acción."
+    return str(err)
 
 
 @bp.get("")
