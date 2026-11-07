@@ -244,7 +244,7 @@ def _import_backlog(ctx: services._Context, plan: _Plan, sheet: Worksheet) -> No
         if not code_text:
             continue
         ctx.stats["backlog_rows"] += 1
-        parsed = parse_project_code(code_text, ctx.mapping.project_code)
+        parsed = parse_project_code(code_text, ctx.mapping)
         if parsed is None or parsed[0] in seen:
             message = (
                 f"Código de proyecto no válido: {code_text[:40]!r}; fila no importada."
@@ -524,7 +524,7 @@ def _plan_target(
 ) -> tuple[Project | None, CatalogItem | None]:
     raw_code = row.values.get("code", "")
     if kind == "project":
-        parsed = parse_project_code(raw_code, ctx.mapping.project_code)
+        parsed = parse_project_code(raw_code, ctx.mapping)
         if parsed:
             return services._project(
                 ctx, ProjectKind.PROJECT, parsed[0], row, sheet, parsed[1]

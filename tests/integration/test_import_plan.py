@@ -44,7 +44,7 @@ def backlog_row(code: str, title: str, **cells: object) -> list[object]:
 
 def plan_row(resource: str, kind: str, code: str, title: str, phase: str,
              hours: dict[int, object]) -> list[object]:  # fmt: skip
-    cells: list[object] = [resource, kind, code, title, phase, "ECOM", datetime(2026, 7, 20),
+    cells: list[object] = [resource, kind, code, title, phase, "APP-A", datetime(2026, 7, 20),
                            datetime(2026, 8, 5), None, 0, 0, 0]  # fmt: skip
     cells += [hours.get(i) for i in range(len(DAYS))]
     return cells
@@ -58,7 +58,7 @@ def make_book(path: Path, *, ticket_hours: float = 4, extra_backlog: bool = True
     backlog.append(BACKLOG_HEADER)
     backlog.append(
         backlog_row(
-            "PROY-0001-2026", "Portal de clientes", st_def="Completado",
+            "PJ-00001", "Portal de clientes", st_def="Completado",
             ini_def=datetime(2026, 1, 5), fin_def=datetime(2026, 1, 9), st_des="En curso",
             ini_des=datetime(2026, 1, 20), fin_des=datetime(2026, 1, 10), stat_pase="Pendiente",
             f_pase=datetime(2026, 2, 27), Status="En desarrollo", Prioridad="Crítica",
@@ -66,25 +66,25 @@ def make_book(path: Path, *, ticket_hours: float = 4, extra_backlog: bool = True
         )
     )  # fmt: skip
     if extra_backlog:
-        backlog.append(backlog_row("PROY-0002-2026-F1", "Fase uno", Status="Backlog"))
+        backlog.append(backlog_row("PJ-00002-F1", "Fase uno", Status="Backlog"))
     backlog.append(backlog_row("TK-MEJORA", "Sin código"))
-    backlog.append(backlog_row("PROY-0001-2026", "Repetido"))
-    backlog.append(backlog_row("PROY-0003-2026", "Fecha rota", f_pase="28-.11", st_qa=5))
+    backlog.append(backlog_row("PJ-00001", "Repetido"))
+    backlog.append(backlog_row("PJ-00003", "Fecha rota", f_pase="28-.11", st_qa=5))
 
     planning = book.create_sheet("Planning")
     planning.append([])
     planning.append([None] * 9 + ["ENERO"])
     planning.append([*PLAN_TEXT, *MONTHLY, *DAY_HEADERS])
     week = dict.fromkeys(range(5), 8)
-    planning.append(plan_row("Ana Pérez Soto", "Proyecto", "PROY-0001-2026", "Portal", "Desarrollo",
+    planning.append(plan_row("Ana Pérez Soto", "Proyecto", "PJ-00001", "Portal", "Desarrollo",
                              {**week, 5: 4, 6: 4}))  # fmt: skip
-    planning.append(plan_row("Ana Pérez Soto", "Proyecto", "PROY-0001-2026", "Portal", "Lev.Obs",
+    planning.append(plan_row("Ana Pérez Soto", "Proyecto", "PJ-00001", "Portal", "Lev.Obs",
                              {7: 2}))  # fmt: skip
     planning.append(plan_row("Ana Pérez Soto", "Ticket", "\xa0", "Atención de tickets",
                              "Desarrollo", {0: ticket_hours, 1: ticket_hours}))  # fmt: skip
     planning.append(plan_row("Ana Pérez Soto", "Onboarding", "", "Inducción", "Otros", {9: 1}))
-    planning.append(plan_row("", "Proyecto", "PROY-0001-2026", "Portal", "Análisis", {8: 3}))
-    planning.append(plan_row("Ana Pérez Soto", "Proyecto", "PROY-9", "Raro", "Análisis",
+    planning.append(plan_row("", "Proyecto", "PJ-00001", "Portal", "Análisis", {8: 3}))
+    planning.append(plan_row("Ana Pérez Soto", "Proyecto", "PJ-9", "Raro", "Análisis",
                              {8: "x"}))  # fmt: skip
     book.save(path)
     return path
@@ -135,7 +135,7 @@ def active_reservations(session: Session) -> list[PlanAllocation]:
 
 def test_backlog_overwrites_projects_and_fills_phases(seeded: Session, workbook: Path) -> None:
     session = seeded
-    existing = Project(code="PROY-0001-2026", title="Viejo")
+    existing = Project(code="PJ-00001", title="Viejo")
     session.add(existing)
     session.flush()
 
@@ -154,7 +154,7 @@ def test_backlog_overwrites_projects_and_fills_phases(seeded: Session, workbook:
     assert priority is not None
     assert priority.name == "Crítica"
     assert priority.kind == CatalogKind.PRIORITY
-    steps = phases(session, "PROY-0001-2026")
+    steps = phases(session, "PJ-00001")
     assert len(steps) == 7
     assert steps["Análisis"].status == "done"
     assert (steps["Análisis"].planned_start, steps["Análisis"].planned_end) == (
@@ -168,8 +168,8 @@ def test_backlog_overwrites_projects_and_fills_phases(seeded: Session, workbook:
         None,
     )
     assert steps["Despliegue"].planned_end == date(2026, 2, 27)
-    sub = project(session, "PROY-0002-2026-F1")
-    assert sub.parent_id == project(session, "PROY-0002-2026").id
+    sub = project(session, "PJ-00002-F1")
+    assert sub.parent_id == project(session, "PJ-00002").id
     assert {
         "invalid_project_code", "duplicate_code", "dates_reversed", "bad_date", "bad_phase_status",
     } <= issue_codes(session, batch.id)  # fmt: skip
@@ -193,7 +193,7 @@ def test_planning_stores_runs_versions_and_reservations(seeded: Session, workboo
         .where(PlanAllocation.plan_version_id == version.id)
         .order_by(PlanAllocation.start_on)
     ).all()
-    development = phases(session, "PROY-0001-2026")["Desarrollo"].id
+    development = phases(session, "PJ-00001")["Desarrollo"].id
     assert [(r.start_on, r.end_on, r.hours, r.project_phase_id) for r in rows] == [
         (date(2026, 1, 5), date(2026, 1, 9), Decimal(40), development),
         (date(2026, 1, 12), date(2026, 1, 13), Decimal(8), development),
@@ -237,7 +237,7 @@ def test_revert_restores_previous_values_and_reservations(
     seeded: Session, workbook: Path, tmp_path: Path
 ) -> None:
     session = seeded
-    existing = Project(code="PROY-0001-2026", title="Viejo")
+    existing = Project(code="PJ-00001", title="Viejo")
     session.add(existing)
     session.flush()
     before = {m: count(session, m) for m in (Project, ProjectPhase, Resource, Portfolio)}

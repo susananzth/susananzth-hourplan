@@ -29,7 +29,7 @@ def resource(session: Session) -> Resource:
 
 @pytest.fixture
 def project(session: Session) -> Project:
-    item = Project(code="PROY-0001-2026", title="Portal")
+    item = Project(code="PJ-00001", title="Portal")
     session.add(item)
     session.commit()
     return item

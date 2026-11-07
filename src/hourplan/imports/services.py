@@ -303,7 +303,7 @@ def _target(
     """Fingerprint text and the foreign key (project or activity bucket) for a row."""
     raw_code = row.values["code"]
     if kind == "project":
-        parsed = parse_project_code(raw_code, ctx.mapping.project_code)
+        parsed = parse_project_code(raw_code, ctx.mapping)
         if parsed:
             project = _project(ctx, ProjectKind.PROJECT, parsed[0], row, sheet, parsed[1])
             return f"P:{project.code}", {"project_id": project.id}

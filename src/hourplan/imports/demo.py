@@ -21,9 +21,9 @@ from hourplan.timesheet.models import TimeEntry
 
 RESOURCES = ("Ana Demo", "Luis Demo", "Marta Demo", "Pablo Demo")
 PROJECTS = (
-    ("PROY-0001-2026", "Portal de clientes", "Alta"),
-    ("PROY-0002-2026", "Facturación electrónica", "Media"),
-    ("PROY-0003-2026", "Migración de reportes", "Baja"),
+    ("PJ-00001", "Portal de clientes", "Alta"),
+    ("PJ-00002", "Facturación electrónica", "Media"),
+    ("PJ-00003", "Migración de reportes", "Baja"),
 )
 PHASES = ("Análisis", "Desarrollo", "Pruebas")
 TASK_TYPES = ("Codificación", "Reunión", "Documentación")

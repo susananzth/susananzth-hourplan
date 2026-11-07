@@ -19,7 +19,7 @@ def source(tmp_path: Path) -> Path:
     return make_book(
         tmp_path / "horas.xlsx",
         [
-            row(("Ana Pérez", "Proyecto", "PROY-0001-2026", "Portal", "Desarrollo", "ECOM",
+            row(("Ana Pérez", "Proyecto", "PJ-00001", "Portal", "Desarrollo", "APP-A",
                  "Codificación", "Pantalla"), {0: 8, 1: 4}),
             row(("Ana Pérez", "Ticket", "17733", "Error", "", "", "", ""), {2: 2}),
             row(("Ana Pérez", "Reuniones", "", "", "", "", "", "Daily"), {3: 1.5}),

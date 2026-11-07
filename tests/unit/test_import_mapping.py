@@ -13,27 +13,38 @@ from hourplan.imports.mapping import (
     parse_ticket_codes,
 )
 
-PATTERN = Mapping().project_code
+MAPPING = Mapping()
 
 
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [
-        ("PROY-0001-2026PYT-ON", ("PROY-0001-2026", None)),
-        ("PROY-0001-2026-PYT-ON", ("PROY-0001-2026", None)),
-        (" proy-115-2025", ("PROY-0115-2025", None)),
-        ("PROY-0032-2026-F1", ("PROY-0032-2026-F1", "F1")),
-        ("PS - PROY-0007-2025 - Notas", ("PROY-0007-2025", None)),
-        ("0039-2026", ("PROY-0039-2026", None)),
+        ("PJ-00001NOTA", ("PJ-00001", None)),
+        ("PJ-00001-NOTA", ("PJ-00001", None)),
+        (" pj-115", ("PJ-00115", None)),
+        ("PJ-00032-F1", ("PJ-00032-F1", "F1")),
+        ("PS - PJ-00007 - Notas", ("PJ-00007", None)),
     ],
 )
 def test_project_code_is_normalised(raw: str, expected: tuple[str, str | None]) -> None:
-    assert parse_project_code(raw, PATTERN) == expected
+    assert parse_project_code(raw, MAPPING) == expected
 
 
-@pytest.mark.parametrize("raw", ["PROY-99999999", "115", "N/A", "Portal Cliente", None, ""])
+@pytest.mark.parametrize("raw", ["PJ-99999999", "115", "N/A", "Portal Cliente", None, ""])
 def test_not_a_project_code(raw: str | None) -> None:
-    assert parse_project_code(raw, PATTERN) is None
+    assert parse_project_code(raw, MAPPING) is None
+
+
+def test_project_code_format_comes_from_the_mapping() -> None:
+    custom = Mapping(
+        project_code=r"PX-?(?P<number>\d{3,4})-(?P<year>\d{4})(?:-(?P<variant>F\d+)\b)?",
+        project_code_format="PX-{number}-{year}",
+        number_width=4,
+    )
+
+    assert parse_project_code("px-032-2026", custom) == ("PX-0032-2026", None)
+    assert parse_project_code("PX-0032-2026-F2", custom) == ("PX-0032-2026-F2", "F2")
+    assert parse_project_code("PX-0032", custom) is None
 
 
 def test_ticket_codes() -> None:

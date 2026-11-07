@@ -59,10 +59,10 @@ def workbook(tmp_path: Path) -> Path:
                 (
                     "Ana Pérez",
                     "Proyecto",
-                    "PROY-0001-2026PYT-ON",
+                    "PJ-00001NOTA",
                     "Portal",
                     "Desarrollo",
-                    "ECOM",
+                    "APP-A",
                     "Codificación",
                     "Pantalla",
                 ),
@@ -72,17 +72,17 @@ def workbook(tmp_path: Path) -> Path:
                 (
                     "Ana Pérez",
                     "Proyecto",
-                    "PROY-0001-2026-PYT-ON",
+                    "PJ-00001-NOTA",
                     "Portal nuevo",
                     "Análisis",
-                    "ECOM",
+                    "APP-A",
                     "Reunión",
                     "Daily",
                 ),
                 {2: 2},
             ),
             row(
-                ("Ana Pérez", "Proyecto", "PROY-0002-2026-F1", "Otro", "Desarrollo", "", "", ""),
+                ("Ana Pérez", "Proyecto", "PJ-00002-F1", "Otro", "Desarrollo", "", "", ""),
                 {3: 1.5},
             ),
             row(
@@ -92,7 +92,7 @@ def workbook(tmp_path: Path) -> Path:
                     "#17733, #17734",
                     "Error",
                     "Desarrollo",
-                    "ECOM",
+                    "APP-A",
                     "Codificación",
                     "Fix",
                 ),
@@ -102,7 +102,7 @@ def workbook(tmp_path: Path) -> Path:
             row(("Ana Pérez", "Proyecto", "N/A", "", "", "", "", ""), {6: 0.3}),
             row(("Ana Pérez", "Onboarding", "", "Equipo", "Otros", "", "", ""), {7: 8}),
             row(("Ana Pérez", "Vacaciones", "", "", "", "", "", ""), {8: 8, 9: 8}),
-            row(("", "Proyecto", "PROY-0001-2026", "", "", "", "", ""), {10: 8}),
+            row(("", "Proyecto", "PJ-00001", "", "", "", "", ""), {10: 8}),
         ],
     )
 
@@ -129,9 +129,9 @@ def test_import_stores_entries_and_reports_issues(session: Session, workbook: Pa
     assert count(session, TimeEntry) == 8
     assert count(session, Absence) == 2
     projects = {p.code: p for p in session.scalars(select(Project))}
-    assert set(projects) == {"PROY-0001-2026", "PROY-0002-2026", "PROY-0002-2026-F1", "17733"}
-    assert projects["PROY-0002-2026-F1"].parent_id == projects["PROY-0002-2026"].id
-    assert projects["PROY-0001-2026"].title == "Portal"
+    assert set(projects) == {"PJ-00001", "PJ-00002", "PJ-00002-F1", "17733"}
+    assert projects["PJ-00002-F1"].parent_id == projects["PJ-00002"].id
+    assert projects["PJ-00001"].title == "Portal"
     assert count(session, Resource) == 1
     assert count(session, Application) == 1
     assert codes(session, batch.id) == {
@@ -176,10 +176,10 @@ def test_rows_already_stored_are_skipped(session: Session, workbook: Path, tmp_p
                 (
                     "Ana Pérez",
                     "Proyecto",
-                    "PROY-0001-2026",
+                    "PJ-00001",
                     "Portal",
                     "Desarrollo",
-                    "ECOM",
+                    "APP-A",
                     "Codificación",
                     "Pantalla",
                 ),
@@ -189,10 +189,10 @@ def test_rows_already_stored_are_skipped(session: Session, workbook: Path, tmp_p
                 (
                     "Ana Pérez",
                     "Proyecto",
-                    "PROY-0001-2026",
+                    "PJ-00001",
                     "Portal",
                     "Desarrollo",
-                    "ECOM",
+                    "APP-A",
                     "Codificación",
                     "Nueva",
                 ),
@@ -209,7 +209,7 @@ def test_rows_already_stored_are_skipped(session: Session, workbook: Path, tmp_p
 
 
 def test_identical_rows_in_one_file_are_both_kept(session: Session, tmp_path: Path) -> None:
-    same = ("Ana", "Proyecto", "PROY-0001-2026", "Portal", "Desarrollo", "", "", "Pruebas")
+    same = ("Ana", "Proyecto", "PJ-00001", "Portal", "Desarrollo", "", "", "Pruebas")
     path = make_book(tmp_path / "dup.xlsx", [row(same, {0: 2}), row(same, {0: 2})])
 
     services.import_hours(session, path)
@@ -236,7 +236,7 @@ def test_revert_removes_everything_the_batch_created(session: Session, workbook:
 def test_revert_keeps_records_used_by_other_data(session: Session, workbook: Path) -> None:
     batch = services.import_hours(session, workbook)
     resource = session.scalars(select(Resource)).one()
-    project = session.scalars(select(Project).where(Project.code == "PROY-0001-2026")).one()
+    project = session.scalars(select(Project).where(Project.code == "PJ-00001")).one()
     session.add(
         TimeEntry(
             resource_id=resource.id, work_date=date(2026, 3, 1), hours=1, project_id=project.id
@@ -247,7 +247,7 @@ def test_revert_keeps_records_used_by_other_data(session: Session, workbook: Pat
     services.revert_batch(session, batch)
 
     assert count(session, TimeEntry) == 1
-    assert session.scalars(select(Project)).one().code == "PROY-0001-2026"
+    assert session.scalars(select(Project)).one().code == "PJ-00001"
     assert count(session, Resource) == 1
 
 

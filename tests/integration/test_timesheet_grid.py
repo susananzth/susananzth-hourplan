@@ -25,7 +25,7 @@ WEEK = "/horas?semana=2026-06-15"
 
 @pytest.fixture
 def project(session: Session) -> Project:
-    item = Project(code="PROY-0001-2026", title="Portal")
+    item = Project(code="PJ-00001-2026", title="Portal")
     session.add(item)
     session.commit()
     return item
@@ -150,7 +150,7 @@ def test_grid_page_shows_rows_and_totals(
 
     html = client.get(WEEK).get_data(as_text=True)
 
-    assert "PROY-0001-2026 · Portal" in html
+    assert "PJ-00001-2026 · Portal" in html
     assert 'value="8.00"' in html or 'value="8"' in html
 
 
@@ -177,7 +177,7 @@ def test_invalid_hours_are_reported_and_not_saved(
 def test_added_row_stays_visible_and_search_lists_results(
     client: FlaskClient, me: Resource, project: Project
 ) -> None:
-    found = client.get("/horas/buscar?q=PROY-0001").get_data(as_text=True)
+    found = client.get("/horas/buscar?q=PJ-00001").get_data(as_text=True)
     assert f'value="{project.id},,,"' in found
 
     html = client.post(
@@ -189,7 +189,7 @@ def test_added_row_stays_visible_and_search_lists_results(
         },
         headers={"HX-Request": "true"},
     ).get_data(as_text=True)
-    assert "PROY-0001-2026 · Portal" in html
+    assert "PJ-00001-2026 · Portal" in html
 
 
 def test_repeat_over_the_web(
@@ -238,7 +238,7 @@ def test_favorite_toggles_and_is_offered_as_a_shortcut(
 ) -> None:
     key = RowKey(project_id=project.id)
     assert services.toggle_favorite(session, me.id, key) is True
-    assert [f.label for f in services.favorites(session, me.id)] == ["PROY-0001-2026 · Portal"]
+    assert [f.label for f in services.favorites(session, me.id)] == ["PJ-00001-2026 · Portal"]
     assert 'aria-pressed="false"' not in client.get(WEEK).get_data(as_text=True)
 
     assert services.toggle_favorite(session, me.id, key) is False
