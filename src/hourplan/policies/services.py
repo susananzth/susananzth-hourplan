@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 from hourplan.audit import services as audit
 from hourplan.audit.models import AuditAction
 from hourplan.db import transaction
-from hourplan.policies.models import EvaluationPolicy, VersionedPolicy, WorkPolicy
+from hourplan.policies.models import EvaluationPolicy, Holiday, VersionedPolicy, WorkPolicy
+from hourplan.shared.labels import label
 
 
 class PolicyError(ValueError):
@@ -38,9 +39,15 @@ class EvaluationPolicyData(_PolicyData):
     @model_validator(mode="after")
     def _red_above_tolerance(self) -> Self:
         if self.hours_red_pct < self.hours_tolerance_pct:
-            raise ValueError("hours_red_pct must be >= hours_tolerance_pct")
+            raise ValueError(
+                f"{label('hours_red_pct')} no puede ser menor que "
+                f"{label('hours_tolerance_pct').lower()}."
+            )
         if self.dates_red_pct < self.dates_tolerance_pct:
-            raise ValueError("dates_red_pct must be >= dates_tolerance_pct")
+            raise ValueError(
+                f"{label('dates_red_pct')} no puede ser menor que "
+                f"{label('dates_tolerance_pct').lower()}."
+            )
         return self
 
 
@@ -53,7 +60,10 @@ class WorkPolicyData(_PolicyData):
     @model_validator(mode="after")
     def _warning_above_standard(self) -> Self:
         if self.daily_warning_hours < self.standard_daily_hours:
-            raise ValueError("daily_warning_hours must be >= standard_daily_hours")
+            raise ValueError(
+                f"{label('daily_warning_hours')} no puede ser menor que "
+                f"{label('standard_daily_hours').lower()}."
+            )
         return self
 
 
@@ -90,7 +100,9 @@ def _schedule[P: VersionedPolicy](
 ) -> P:
     """Create the policy, or replace a future one with the same start date."""
     if data.effective_from < today:
-        raise PolicyInForceError("A new policy cannot start in the past")
+        raise PolicyInForceError(
+            "Una política nueva no puede empezar en el pasado: elige una fecha futura."
+        )
     values = data.model_dump()
     with transaction(session):
         policy = session.scalars(
@@ -104,7 +116,9 @@ def _schedule[P: VersionedPolicy](
             action, changes = AuditAction.CREATE, values
         else:
             if policy.effective_from <= today:
-                raise PolicyInForceError("The policy is already in force")
+                raise PolicyInForceError(
+                    "La política ya está vigente y no se puede cambiar: elige una fecha futura."
+                )
             before = {key: getattr(policy, key) for key in values}
             for key, value in values.items():
                 setattr(policy, key, value)
@@ -118,3 +132,54 @@ def _schedule[P: VersionedPolicy](
             changes=changes,
         )
     return policy
+
+
+class HolidayError(ValueError):
+    pass
+
+
+def list_holidays(session: Session, year: int) -> list[Holiday]:
+    return list(
+        session.scalars(
+            select(Holiday)
+            .where(Holiday.holiday_date.between(date(year, 1, 1), date(year, 12, 31)))
+            .order_by(Holiday.holiday_date)
+        )
+    )
+
+
+def add_holiday(session: Session, day: date, name: str, *, actor_id: int | None) -> Holiday:
+    name = name.strip()
+    if not name:
+        raise HolidayError("Escribe el nombre del feriado.")
+    if session.scalar(select(Holiday.id).where(Holiday.holiday_date == day)):
+        raise HolidayError("Ya hay un feriado en esa fecha.")
+    with transaction(session):
+        holiday = Holiday(holiday_date=day, name=name)
+        session.add(holiday)
+        session.flush()
+        audit.record(
+            session,
+            action=AuditAction.CREATE,
+            entity_type="holiday",
+            entity_id=holiday.id,
+            actor_id=actor_id,
+            changes={"holiday_date": day, "name": name},
+        )
+    return holiday
+
+
+def delete_holiday(session: Session, holiday_id: int, *, actor_id: int | None) -> None:
+    holiday = session.get(Holiday, holiday_id)
+    if holiday is None:
+        raise HolidayError("No se encontró el feriado.")
+    with transaction(session):
+        audit.record(
+            session,
+            action=AuditAction.DELETE,
+            entity_type="holiday",
+            entity_id=holiday.id,
+            actor_id=actor_id,
+            changes={"holiday_date": [holiday.holiday_date, None], "name": [holiday.name, None]},
+        )
+        session.delete(holiday)

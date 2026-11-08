@@ -99,9 +99,9 @@ def test_policy_in_force_is_immutable(session: Session) -> None:
 
 
 def test_policy_data_rejects_inconsistent_thresholds() -> None:
-    with pytest.raises(ValidationError, match="hours_red_pct"):
+    with pytest.raises(ValidationError, match="Límite rojo de horas"):
         evaluation(TODAY, tolerance="30")
-    with pytest.raises(ValidationError, match="daily_warning_hours"):
+    with pytest.raises(ValidationError, match="Aviso diario"):
         services.WorkPolicyData(
             effective_from=TODAY,
             standard_daily_hours=Decimal(8),

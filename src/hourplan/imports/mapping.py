@@ -143,8 +143,11 @@ class Mapping(BaseModel):
             "licencias": "sick_leave",
         }
     )
-    # Group 1 = number, group 2 = year, optional group 3 = split variant (F1, F2...).
-    project_code: str = r"(?:PROY-?)?(?<!\d)(\d{3,4})-(\d{4})(?:-(F\d+)\b)?"
+    # Named groups: ``number``, optional ``year`` and ``variant`` (a split project: F1, F2...).
+    project_code: str = r"PJ-?(?P<number>\d{3,5})(?!\d)(?:-(?P<variant>F\d+)\b)?"
+    # How the normalised code is written; ``number`` is zero-padded to ``number_width``.
+    project_code_format: str = "PJ-{number}"
+    number_width: int = 5
     # Hours must be multiples of this step (0.25 by design).
     quarter: Decimal = Decimal("0.25")
     # A sheet is read as an hours sheet when it has at least this many date columns.
@@ -190,13 +193,16 @@ def slug(value: str, limit: int = 40) -> str:
     return text[:limit] or "OTHER"
 
 
-def parse_project_code(raw: object, pattern: str) -> tuple[str, str | None] | None:
-    """``(code, variant)`` such as ``("PROY-0032-2026", "F1")``, or None if it is not one."""
-    match = re.search(pattern, clean(raw).upper())
+def parse_project_code(raw: object, mapping: Mapping) -> tuple[str, str | None] | None:
+    """``(code, variant)`` such as ``("PJ-00032-F1", "F1")``, or None if it is not one."""
+    match = re.search(mapping.project_code, clean(raw).upper())
     if not match:
         return None
-    number, year, variant = match.group(1), match.group(2), match.group(3)
-    code = f"PROY-{number.zfill(4)}-{year}"
+    groups = match.groupdict()
+    code = mapping.project_code_format.format(
+        number=groups["number"].zfill(mapping.number_width), year=groups.get("year") or ""
+    )
+    variant = groups.get("variant")
     return (f"{code}-{variant}" if variant else code), variant
 
 

@@ -61,7 +61,7 @@ def test_cell_readers_tell_empty_from_unreadable() -> None:
 
 
 def test_find_header_scans_the_first_rows() -> None:
-    rows = [[None, "DEF"], [None, "Código", "Título"], ["PROY-0001-2026", "Portal"]]
+    rows = [[None, "DEF"], [None, "Código", "Título"], ["PJ-00001", "Portal"]]
 
     assert find_header(rows, Mapping().backlog.columns, ("code", "title")) == (
         1,
