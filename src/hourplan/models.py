@@ -1,5 +1,6 @@
 """Imports every model so Alembic sees the full metadata."""
 
+from hourplan.ailog.models import AccessToken, AiDraft
 from hourplan.audit.models import AuditLog
 from hourplan.auth.models import User, UserRole
 from hourplan.catalogs.models import Application, CatalogItem, Portfolio, Repository
@@ -26,6 +27,8 @@ metadata = Base.metadata
 
 __all__ = [
     "Absence",
+    "AccessToken",
+    "AiDraft",
     "AlertFired",
     "AlertSetting",
     "Application",
