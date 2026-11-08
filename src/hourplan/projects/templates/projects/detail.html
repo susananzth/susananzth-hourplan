@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ project.code }} · HourPlan{% endblock %}
+{% block content %}
+{% set input = "rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
+{% set primary = "rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600" %}
+{% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
+<div class="mb-2 flex flex-wrap items-center justify-between gap-3">
+  <h1 class="text-2xl font-semibold text-ink">{{ project.code }} · {{ project.title }}</h1>
+  <div class="flex gap-2"><a href="{{ url_for('projects.index') }}" class="{{ quiet }}">Volver</a>
+    {% if can_edit %}<a href="{{ url_for('projects.edit', project_id=project.id) }}" class="{{ primary }}">Editar</a>{% endif %}</div>
+</div>
+<p class="mb-4 text-sm text-ink-muted">
+  {{ items.get(project.status_id, 'Sin estado') }} · prioridad {{ items.get(project.priority_id, 'sin definir') | lower }}
+  · esfuerzo base {{ project.base_effort_hours or '—' }} h · contingencia {{ project.contingency_hours or '—' }} h
+  {% if span %}· plan del {{ span[0].strftime('%d/%m/%Y') }} al {{ span[1].strftime('%d/%m/%Y') }}{% endif %}
+</p>
+{% if warning %}<p role="status" class="mb-4 rounded-md border border-line-strong bg-surface-raised p-3 text-sm text-ink">{{ warning }}</p>{% endif %}
+{% if project.notes %}<p class="mb-6 whitespace-pre-line text-sm text-ink">{{ project.notes }}</p>{% endif %}
+
+<h2 class="mb-3 text-lg font-semibold text-ink">Fases</h2>
+<div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
+  <table class="w-full text-left text-sm">
+    <thead class="border-b border-line text-ink-muted"><tr>
+      <th scope="col" class="px-4 py-2 font-medium">Fase</th>
+      <th scope="col" class="px-4 py-2 font-medium">Estado</th>
+      <th scope="col" class="px-4 py-2 font-medium">Inicio previsto</th>
+      <th scope="col" class="px-4 py-2 font-medium">Fin previsto</th>
+      <th scope="col" class="px-4 py-2 font-medium">Esfuerzo (h)</th>
+      <th scope="col" class="px-4 py-2 font-medium">Contingencia (h)</th>
+      {% if can_edit %}<th scope="col" class="px-4 py-2"><span class="sr-only">Guardar</span></th>{% endif %}
+    </tr></thead>
+    <tbody>
+      {% for ph in project.phases %}
+      {% if can_edit %}
+      {% set f = 'fase-' ~ ph.id %}
+      <tr class="border-b border-line last:border-0">
+        <th scope="row" class="px-4 py-2 font-medium text-ink">{{ ph.name }}</th>
+        <td class="px-4 py-2"><form id="{{ f }}" method="post" action="{{ url_for('projects.update_phase', project_id=project.id, phase_id=ph.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+          <select form="{{ f }}" name="estado" aria-label="Estado de {{ ph.name }}" class="{{ input }}">
+            {% for key, text in phase_statuses.items() %}<option value="{{ key.value }}"{% if ph.status == key.value %} selected{% endif %}>{{ text }}</option>{% endfor %}
+          </select></td>
+        <td class="px-4 py-2"><input form="{{ f }}" type="date" name="inicio" aria-label="Inicio previsto de {{ ph.name }}" value="{{ ph.planned_start.isoformat() if ph.planned_start else '' }}" class="{{ input }}"></td>
+        <td class="px-4 py-2"><input form="{{ f }}" type="date" name="fin" aria-label="Fin previsto de {{ ph.name }}" value="{{ ph.planned_end.isoformat() if ph.planned_end else '' }}" class="{{ input }}"></td>
+        <td class="px-4 py-2"><input form="{{ f }}" name="esfuerzo" inputmode="decimal" aria-label="Esfuerzo de {{ ph.name }}" value="{{ ph.base_effort_hours if ph.base_effort_hours is not none else '' }}" class="w-24 {{ input }}"></td>
+        <td class="px-4 py-2"><input form="{{ f }}" name="contingencia" inputmode="decimal" aria-label="Contingencia de {{ ph.name }}" value="{{ ph.contingency_hours if ph.contingency_hours is not none else '' }}" class="w-24 {{ input }}"></td>
+        <td class="px-4 py-2 text-right"><button form="{{ f }}" type="submit" class="{{ quiet }}">Guardar</button></td>
+      </tr>
+      {% else %}
+      <tr class="border-b border-line last:border-0">
+        <th scope="row" class="px-4 py-2 font-medium text-ink">{{ ph.name }}</th>
+        <td class="px-4 py-2 text-ink">{{ phase_statuses[ph.status] }}</td>
+        <td class="px-4 py-2 text-ink">{{ ph.planned_start.strftime('%d/%m/%Y') if ph.planned_start else '—' }}</td>
+        <td class="px-4 py-2 text-ink">{{ ph.planned_end.strftime('%d/%m/%Y') if ph.planned_end else '—' }}</td>
+        <td class="px-4 py-2 text-ink">{{ ph.base_effort_hours if ph.base_effort_hours is not none else '—' }}</td>
+        <td class="px-4 py-2 text-ink">{{ ph.contingency_hours if ph.contingency_hours is not none else '—' }}</td>
+      </tr>
+      {% endif %}
+      {% else %}
+      <tr><td colspan="7" class="px-4 py-6 text-center text-ink-muted">Este proyecto no tiene fases.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
