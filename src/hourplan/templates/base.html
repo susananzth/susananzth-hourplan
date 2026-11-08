@@ -21,7 +21,7 @@
       <a href="{{ url_for('absences.index') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/ausencias') %} aria-current="page"{% endif %}>Ausencias</a>
       <a href="{{ url_for('bank.index') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/banco') %} aria-current="page"{% endif %}>Banco de horas</a>
       <a href="{{ url_for('projects.index') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/proyectos') %} aria-current="page"{% endif %}>Proyectos</a>
-      {% if current_user.has_role('admin', 'pm', 'lead', 'observer') %}<a href="{{ url_for('planning.capacity') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/planificacion/capacidad') %} aria-current="page"{% endif %}>Capacidad</a>{% endif %}
+      <a href="{{ url_for('planning.gantt_projects') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/planificacion') %} aria-current="page"{% endif %}>Planificación</a>
       {% if nav_links %}
       <nav aria-label="Administración" class="hidden flex-1 flex-wrap gap-1 px-6 md:flex">
         {% for href, label in nav_links %}

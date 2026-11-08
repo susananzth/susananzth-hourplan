@@ -3,7 +3,18 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
+from flask import (
+    Response as FlaskResponse,
+)
 from flask_login import current_user
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -14,7 +25,7 @@ from hourplan.auth.permissions import roles_required
 from hourplan.auth.roles import Role
 from hourplan.catalogs import services as catalogs
 from hourplan.extensions import db
-from hourplan.planning import services
+from hourplan.planning import gantt, services
 from hourplan.projects import services as projects
 from hourplan.resources.models import Resource
 from hourplan.shared.labels import label, validation_message
@@ -24,6 +35,8 @@ bp = Blueprint("planning", __name__, url_prefix="/planificacion", template_folde
 VIEWERS = (Role.ADMIN, Role.PM, Role.LEAD, Role.DEVELOPER, Role.OBSERVER)
 PLANNERS = (Role.ADMIN, Role.PM, Role.LEAD)
 CAPACITY_VIEWERS = (Role.ADMIN, Role.PM, Role.LEAD, Role.OBSERVER)
+PERSONAL = (Role.ADMIN, Role.PM, Role.LEAD, Role.DEVELOPER)
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 MAX_WEEKS = 26
 
 
@@ -174,4 +187,72 @@ def capacity() -> str:
         count=count,
         prev_start=first - timedelta(weeks=count),
         next_start=first + timedelta(weeks=count),
+    )
+
+
+def _timeline() -> gantt.Timeline:
+    try:
+        start = date.fromisoformat(request.args.get("desde", ""))
+    except ValueError:
+        start = _today() - timedelta(weeks=2)
+    count = min(max(_int(request.args.get("semanas")) or 12, 1), MAX_WEEKS)
+    return gantt.Timeline.weeks_from(start, count)
+
+
+def _gantt(view: str, title: str, rows: list[gantt.Row], **extra: object) -> str | FlaskResponse:
+    tl = _timeline()
+    if request.args.get("formato") == "xlsx":
+        return FlaskResponse(
+            gantt.to_workbook(title, tl, rows),
+            mimetype=XLSX,
+            headers={
+                "Content-Disposition": f"attachment; filename=gantt-{view}-{tl.start:%Y%m%d}.xlsx"
+            },
+        )
+    weeks = len(tl.weeks())
+    return render_template(
+        "planning/gantt.html",
+        view=view,
+        title=title,
+        rows=rows,
+        tl=tl,
+        weeks=weeks,
+        today=_today(),
+        prev_start=tl.start - timedelta(weeks=weeks),
+        next_start=tl.start + timedelta(weeks=weeks),
+        kinds=gantt.KIND_LABELS,
+        **extra,
+    )
+
+
+@bp.get("/gantt/proyectos")
+@roles_required(*VIEWERS)
+def gantt_projects() -> str | FlaskResponse:
+    portfolio_id = _int(request.args.get("cartera"))
+    rows = gantt.project_rows(db.session, _timeline(), portfolio_id=portfolio_id, today=_today())
+    return _gantt(
+        "proyectos",
+        "Gantt por proyecto",
+        rows,
+        portfolios=[p for p in catalogs.list_portfolios(db.session) if p.is_active],
+        portfolio_id=portfolio_id,
+    )
+
+
+@bp.get("/gantt/recursos")
+@roles_required(*CAPACITY_VIEWERS)
+def gantt_resources() -> str | FlaskResponse:
+    return _gantt("recursos", "Gantt por persona", gantt.resource_rows(db.session, _timeline()))
+
+
+@bp.get("/gantt/mio")
+@roles_required(*PERSONAL)
+def gantt_personal() -> str | FlaskResponse:
+    resource = db.session.scalars(
+        select(Resource).where(Resource.user_id == int(current_user.id), Resource.is_active)
+    ).first()
+    if resource is None:
+        return render_template("planning/no_resource.html")
+    return _gantt(
+        "mio", "Mi planificación", gantt.personal_rows(db.session, _timeline(), resource.id)
     )

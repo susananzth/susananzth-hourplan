@@ -11,7 +11,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 from hourplan.audit import services as audit
@@ -305,20 +305,25 @@ def _standard_hours(session: Session, start: date, end: date) -> dict[date, Deci
     return result
 
 
-def current_allocations(
-    session: Session, start: date, end: date, resource_ids: list[int] | None = None
-) -> list[PlanAllocation]:
-    """Allocations overlapping the period in each project's latest version, plus the bucket
-    reservations no later import replaced."""
+def current_version_ids() -> Select[int]:
+    """Ids of the latest plan version of every project, as a subquery."""
     latest = (
         select(PlanVersion.project_id, func.max(PlanVersion.number).label("number"))
         .group_by(PlanVersion.project_id)
         .subquery()
     )
-    current_versions = select(PlanVersion.id).join(
+    return select(PlanVersion.id).join(
         latest,
         (PlanVersion.project_id == latest.c.project_id) & (PlanVersion.number == latest.c.number),
     )
+
+
+def current_allocations(
+    session: Session, start: date, end: date, resource_ids: list[int] | None = None
+) -> list[PlanAllocation]:
+    """Allocations overlapping the period in each project's latest version, plus the bucket
+    reservations no later import replaced."""
+    current_versions = current_version_ids()
     stmt = select(PlanAllocation).where(
         PlanAllocation.start_on <= end,
         PlanAllocation.end_on >= start,
