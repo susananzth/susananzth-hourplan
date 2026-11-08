@@ -9,6 +9,13 @@ class ConfigError(RuntimeError):
     """A required setting is missing or invalid."""
 
 
+def _bool_env(name: str) -> bool | None:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return None
+    return raw.strip().lower() in ("1", "true", "yes", "si", "sí")
+
+
 def _float_env(name: str) -> float | None:
     raw = os.environ.get(name)
     if raw is None or not raw.strip():
@@ -47,6 +54,11 @@ class BaseConfig:
     VOICE_MAX_SECONDS = 180.0
     VOICE_UPLOAD_LIMIT = "20 per hour"
 
+    # MCP endpoint for AI clients; off unless enabled. Tokens expire after MCP_TOKEN_DAYS.
+    MCP_ENABLED = False
+    MCP_TOKEN_DAYS = 90
+    MCP_RATE_LIMIT = "120 per minute"
+
     RATELIMIT_HEADERS_ENABLED = True
     LOGIN_RATE_LIMIT = "5 per minute"
 
@@ -73,6 +85,7 @@ class BaseConfig:
             "VOICE_STT_TIMEOUT": _float_env("VOICE_STT_TIMEOUT"),
             "VOICE_LLM_TIMEOUT": _float_env("VOICE_LLM_TIMEOUT"),
             "VOICE_MAX_SECONDS": _float_env("VOICE_MAX_SECONDS"),
+            "MCP_ENABLED": _bool_env("MCP_ENABLED"),
         }
         return {key: value for key, value in env.items() if value is not None}
 
@@ -105,6 +118,7 @@ class TestingConfig(DevelopmentConfig):
         # Tests switch voice on explicitly and never reach real engines.
         env.pop("VOICE_STT_URL", None)
         env.pop("VOICE_LLM_URL", None)
+        env.pop("MCP_ENABLED", None)
         return env
 
 

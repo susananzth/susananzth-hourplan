@@ -15,6 +15,7 @@ def create_app(config_name: str | None = None, overrides: dict[str, Any] | None 
 
     from hourplan import extensions
     from hourplan.admin import routes as admin_routes
+    from hourplan.ailog import mcp_routes
     from hourplan.ailog import routes as ailog_routes
     from hourplan.auth import cli as auth_cli
     from hourplan.auth import routes as auth_routes
@@ -54,6 +55,7 @@ def create_app(config_name: str | None = None, overrides: dict[str, Any] | None 
     app.register_blueprint(timer_routes.bp)
     app.register_blueprint(voice_routes.bp)
     app.register_blueprint(ailog_routes.bp)
+    app.register_blueprint(mcp_routes.bp)
     app.register_blueprint(voice_cli.bp)
     app.register_blueprint(project_routes.bp)
     app.register_blueprint(planning_routes.bp)
