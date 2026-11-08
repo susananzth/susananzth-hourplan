@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Capacidad · HourPlan{% endblock %}
+{% block content %}
+{% set input = "rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
+{% set primary = "rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600" %}
+{% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
+{% include "planning/_tabs.html" %}
+<div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+  <h1 class="text-2xl font-semibold text-ink">Capacidad del equipo</h1>
+  <form method="get" class="flex flex-wrap items-end gap-3">
+    <div><label for="desde" class="mb-1 block text-xs text-ink-muted">Desde la semana del</label>
+      <input id="desde" name="desde" type="date" value="{{ start.isoformat() }}" class="{{ input }}"></div>
+    <div><label for="semanas" class="mb-1 block text-xs text-ink-muted">Semanas</label>
+      <input id="semanas" name="semanas" type="number" min="1" max="26" value="{{ count }}" class="w-20 {{ input }}"></div>
+    <button type="submit" class="{{ primary }}">Ver</button>
+    <a href="{{ url_for('planning.capacity', desde=prev_start.isoformat(), semanas=count) }}" class="{{ quiet }}">← Anteriores</a>
+    <a href="{{ url_for('planning.capacity', desde=next_start.isoformat(), semanas=count) }}" class="{{ quiet }}">Siguientes →</a>
+  </form>
+</div>
+<p class="mb-4 text-sm text-ink-muted">Cada celda muestra las horas libres y, debajo, asignadas de disponibles. Disponibles = días hábiles × jornada − ausencias aprobadas. ⚠ marca sobreasignación.</p>
+<div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
+  <table class="w-full text-left text-sm">
+    <thead class="border-b border-line text-ink-muted"><tr>
+      <th scope="col" class="sticky left-0 bg-surface-raised px-4 py-2 font-medium">Persona</th>
+      {% for a, b in periods %}<th scope="col" class="px-3 py-2 text-right font-medium whitespace-nowrap">{{ a.strftime('%d/%m') }}</th>{% endfor %}
+    </tr></thead>
+    <tbody>
+      {% for load in loads %}
+      <tr class="border-b border-line last:border-0">
+        <th scope="row" class="sticky left-0 bg-surface-raised px-4 py-2 font-medium text-ink whitespace-nowrap">{{ load.resource.display_name }}</th>
+        {% for days in week_days %}
+        {% set free = load.free(days) %}
+        <td class="px-3 py-2 text-right whitespace-nowrap {{ 'font-semibold text-red-700 dark:text-red-300' if free < 0 else 'text-ink' }}">
+          {% if free < 0 %}⚠ {% endif %}{{ '%.1f' | format(free) }} h
+          <span class="block text-xs font-normal text-ink-muted">{{ '%.1f' | format(load.total('assigned', days)) }} / {{ '%.1f' | format(load.total('available', days)) }}</span>
+        </td>
+        {% endfor %}
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ periods | length + 1 }}" class="px-4 py-6 text-center text-ink-muted">No hay personas activas.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
