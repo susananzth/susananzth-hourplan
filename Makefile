@@ -5,7 +5,7 @@ export UID := $(shell id -u)
 export GID := $(shell id -g)
 
 .DEFAULT_GOAL := help
-.PHONY: help up down logs migrate seed user demo dev test test-fast lint format lock audit build e2e css
+.PHONY: help up down logs migrate seed user demo dev test test-fast lint format lock audit build e2e css voice-models voice-up
 
 help: ## Show available commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -52,6 +52,12 @@ audit: ## Known vulnerabilities in dependencies
 
 css: ## Rebuild the compiled CSS and vendored scripts (needed after template changes)
 	docker run --rm -u $(UID):$(GID) -e HOME=/tmp -v "$(CURDIR)":/app -w /app node:24.22.2-alpine3.24 sh -c "npm ci --no-audit --no-fund && npm run build"
+
+voice-models: ## Download a Whisper model into the volume (make voice-models M=small|base|medium|turbo)
+	$(COMPOSE) --profile voice-models run --rm voice-models flask voice-fetch-model $(or $(M),small)
+
+voice-up: ## Start dictation: Whisper + worker (add LLM=1 for the local LLM)
+	$(COMPOSE) --profile voice $(if $(LLM),--profile voice-llm) up -d --build --wait db web whisper voice-worker $(if $(LLM),llm)
 
 e2e: css ## Browser tests (Playwright in Docker) on a throwaway database; also refreshes docs/capturas
 	$(COMPOSE) up -d --wait db

@@ -121,5 +121,65 @@ services:
       e2e-app:
         condition: service_healthy
 
+  # --- Voice dictation (ADR-006). Profiles: voice (STT + worker), voice-llm (optional LLM).
+  # Set VOICE_STT_URL=http://whisper:8080 (and VOICE_LLM_URL=http://llm:8080) in .env so that
+  # web and voice-worker both see them. No ports are published: only the internal network.
+  # Images are pinned by digest (tags: whisper.cpp "main", llama.cpp "server", 2026-11-08).
+  whisper:
+    profiles: [voice]
+    image: ghcr.io/ggml-org/whisper.cpp@sha256:168d3bf105f243aad646079adffe59875f937c9e29a64d91d9aa03669f85bc08
+    user: "65534:65534"
+    read_only: true
+    tmpfs: [/tmp]
+    command:
+      - >-
+        whisper-server --host 0.0.0.0 --port 8080 -l es
+        -m /models/${VOICE_STT_FILE:-ggml-small.bin}
+        --inference-path /v1/audio/transcriptions
+    volumes:
+      - voice-models:/models:ro
+
+  voice-worker:
+    profiles: [voice]
+    build:
+      context: .
+      target: runtime
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *database-url
+      HOURPLAN_ENV: ${HOURPLAN_ENV:-production}
+    command: ["flask", "voice-worker"]
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      whisper:
+        condition: service_started
+
+  llm:
+    profiles: [voice-llm]
+    image: ghcr.io/ggml-org/llama.cpp@sha256:ca40726778c25a7fadce42c09bada8484eab22e28bc283bdbf212e87b1555390
+    user: "65534:65534"
+    read_only: true
+    tmpfs: [/tmp]
+    command: ["-m", "/models/${VOICE_LLM_FILE:-llm.gguf}", "--ctx-size", "4096"]
+    volumes:
+      - voice-models:/models:ro
+
+  # One-off: downloads a model into the voice-models volume and checks its SHA-256.
+  voice-models:
+    profiles: [voice-models]
+    build:
+      context: .
+      target: runtime
+    user: root
+    environment:
+      VOICE_MODELS_DIR: /models
+    volumes:
+      - voice-models:/models
+
 volumes:
   pgdata:
+  voice-models:

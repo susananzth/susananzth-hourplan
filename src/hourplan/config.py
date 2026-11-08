@@ -9,6 +9,16 @@ class ConfigError(RuntimeError):
     """A required setting is missing or invalid."""
 
 
+def _float_env(name: str) -> float | None:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return None
+    try:
+        return float(raw)
+    except ValueError as err:
+        raise ConfigError(f"{name} debe ser un número.") from err
+
+
 class BaseConfig:
     REQUIRED: ClassVar[tuple[str, ...]] = ("SECRET_KEY", "DATABASE_URL")
 
@@ -26,6 +36,16 @@ class BaseConfig:
 
     MAX_CONTENT_LENGTH = 10 * 1024 * 1024
     WTF_CSRF_TIME_LIMIT = None
+
+    # Voice dictation is off unless an STT server is configured (see ADR-006).
+    VOICE_STT_URL: str | None = None
+    VOICE_STT_MODEL = "whisper-small"
+    VOICE_LLM_URL: str | None = None
+    VOICE_LLM_MODEL = "local"
+    VOICE_STT_TIMEOUT = 300.0
+    VOICE_LLM_TIMEOUT = 90.0
+    VOICE_MAX_SECONDS = 180.0
+    VOICE_UPLOAD_LIMIT = "20 per hour"
 
     RATELIMIT_HEADERS_ENABLED = True
     LOGIN_RATE_LIMIT = "5 per minute"
@@ -46,6 +66,13 @@ class BaseConfig:
             "DATABASE_URL": os.environ.get("DATABASE_URL"),
             "RATELIMIT_STORAGE_URI": os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
             "HOURPLAN_OVERLAY_DIR": os.environ.get("HOURPLAN_OVERLAY_DIR"),
+            "VOICE_STT_URL": os.environ.get("VOICE_STT_URL"),
+            "VOICE_STT_MODEL": os.environ.get("VOICE_STT_MODEL"),
+            "VOICE_LLM_URL": os.environ.get("VOICE_LLM_URL"),
+            "VOICE_LLM_MODEL": os.environ.get("VOICE_LLM_MODEL"),
+            "VOICE_STT_TIMEOUT": _float_env("VOICE_STT_TIMEOUT"),
+            "VOICE_LLM_TIMEOUT": _float_env("VOICE_LLM_TIMEOUT"),
+            "VOICE_MAX_SECONDS": _float_env("VOICE_MAX_SECONDS"),
         }
         return {key: value for key, value in env.items() if value is not None}
 
