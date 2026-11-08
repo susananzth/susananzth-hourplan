@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Cronómetro · HourPlan{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold text-ink">Cronómetro</h1>
+<p class="mt-1 text-sm text-ink-muted">El tiempo corre en el servidor: puedes recargar o cerrar el navegador sin perderlo. Solo uno corre a la vez.</p>
+
+<div class="mt-6 grid gap-6 md:grid-cols-2">
+  <form method="post" action="{{ url_for('timer.start') }}" class="rounded-lg border border-line bg-surface-raised p-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="buscar-inicio" class="mb-1 block text-sm font-medium text-ink">Iniciar en</label>
+    <input id="buscar-inicio" type="search" name="q" autocomplete="off" placeholder="Código, título o actividad" hx-get="{{ url_for('timesheet.search') }}" hx-trigger="input changed delay:300ms, search" hx-target="#resultados-inicio" hx-swap="innerHTML" aria-controls="resultados-inicio" class="block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
+    <ul id="resultados-inicio" class="mt-2 max-h-60 overflow-y-auto"></ul>
+    <p class="mt-2 text-xs text-ink-muted">Elige un resultado para iniciar; el cronómetro que corre se pausa.</p>
+  </form>
+
+  <form method="post" action="{{ url_for('timer.preferences') }}" class="rounded-lg border border-line bg-surface-raised p-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="minutos" class="mb-1 block text-sm font-medium text-ink">Avisar tras inactividad (minutos)</label>
+    <div class="flex gap-2">
+      <input id="minutos" name="minutos" type="number" min="1" max="120" value="{{ idle_minutes }}" class="w-24 rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
+      <button type="submit" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Guardar</button>
+    </div>
+    <div class="mt-3 flex flex-wrap gap-2">
+      <button type="button" data-enable-notifications class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Activar avisos del navegador</button>
+      <button type="button" data-enable-idle class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Detección precisa de inactividad</button>
+      <a href="{{ url_for('timer.alert_settings') }}" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Alertas de horas</a>
+    </div>
+  </form>
+</div>
+
+<h2 class="mt-8 text-lg font-semibold text-ink">Cronómetros abiertos</h2>
+{% if not timers %}<p class="mt-2 text-sm text-ink-muted">No hay cronómetros abiertos.</p>{% endif %}
+<ul class="mt-3 space-y-3">
+{% for t, text, seconds in timers %}
+  <li class="rounded-lg border border-line bg-surface-raised p-4">
+    <div class="flex flex-wrap items-center gap-3">
+      <span class="font-medium text-ink">{{ text }}</span>
+      <span class="text-xs text-ink-muted">{{ 'Corriendo' if t.status == 'running' else 'En pausa' }}</span>
+      <time class="tabular-nums text-ink" data-elapsed="{{ seconds }}" data-running="{{ '1' if t.status == 'running' else '0' }}">{{ '%02d:%02d:%02d'|format(seconds // 3600, seconds % 3600 // 60, seconds % 60) }}</time>
+      {% if t.status != 'running' %}
+      <form method="post" action="{{ url_for('timer.resume', timer_id=t.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Reanudar</button></form>
+      {% endif %}
+      <form method="post" action="{{ url_for('timer.discard', timer_id=t.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Descartar</button></form>
+    </div>
+    <details class="mt-3"{% if t.is_interruption and not t.project_id and not t.activity_bucket_id %} open{% endif %}>
+      <summary class="cursor-pointer text-sm font-medium text-brand-700 dark:text-brand-300">Detener y guardar horas</summary>
+      <form method="post" action="{{ url_for('timer.stop', timer_id=t.id) }}" class="mt-3 grid gap-3 sm:grid-cols-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if not t.project_id and not t.activity_bucket_id %}
+        <div class="sm:col-span-2">
+          <label for="q-{{ t.id }}" class="mb-1 block text-sm font-medium text-ink">Clasificar como</label>
+          <input id="q-{{ t.id }}" type="search" name="q" autocomplete="off" placeholder="Llamada, asesoría, ticket…" hx-get="{{ url_for('timesheet.search') }}" hx-trigger="input changed delay:300ms, search" hx-target="#r-{{ t.id }}" hx-swap="innerHTML" class="block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
+          <ul id="r-{{ t.id }}" class="mt-2 max-h-60 overflow-y-auto"></ul>
+          <p class="mt-1 text-xs text-ink-muted">Elige un resultado para guardar con esa clasificación.</p>
+        </div>
+        {% endif %}
+        <div>
+          <label for="tipo-{{ t.id }}" class="mb-1 block text-sm font-medium text-ink">Tipo de tarea</label>
+          <select id="tipo-{{ t.id }}" name="tipo" class="block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-ink">
+            <option value="">Sin tipo</option>
+            {% for type in task_types %}<option value="{{ type.id }}">{{ type.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="desc-{{ t.id }}" class="mb-1 block text-sm font-medium text-ink">Descripción</label>
+          <input id="desc-{{ t.id }}" name="descripcion" value="{{ t.description or '' }}" maxlength="2000" class="block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-ink">
+        </div>
+        <label class="flex items-center gap-2 text-sm text-ink"><input type="checkbox" name="ia" value="1"{% if t.ai_assisted %} checked{% endif %}> Asistido por IA</label>
+        {% if t.project_id or t.activity_bucket_id %}
+        <div class="sm:col-span-2"><button type="submit" class="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Guardar horas</button></div>
+        {% endif %}
+      </form>
+    </details>
+  </li>
+{% endfor %}
+</ul>
+{% endblock %}

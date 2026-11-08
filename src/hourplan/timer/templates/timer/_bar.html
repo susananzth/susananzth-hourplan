@@ -1,0 +1,15 @@
+<div id="timer-bar" hx-post="{{ url_for('timer.beat') }}" hx-trigger="every 60s" hx-target="this" hx-swap="outerHTML" class="border-b border-line bg-surface-raised" data-running="{{ '1' if timer and timer.status == 'running' else '0' }}" data-idle-seconds="{{ idle_seconds }}" data-alerts='{{ alerts|tojson }}'>
+  <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-2 text-sm">
+    {% if timer %}
+    <span class="font-medium text-ink">{{ label }}</span>
+    <time class="tabular-nums text-ink" data-elapsed="{{ elapsed }}" data-running="{{ '1' if timer.status == 'running' else '0' }}" aria-label="Tiempo transcurrido">{{ '%02d:%02d:%02d'|format(elapsed // 3600, elapsed % 3600 // 60, elapsed % 60) }}</time>
+    <button type="button" hx-post="{{ url_for('timer.pause', timer_id=timer.id) }}" hx-target="#timer-bar" hx-swap="outerHTML" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Pausar</button>
+    <a href="{{ url_for('timer.index') }}" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Detener</a>
+    {% else %}
+    <span class="text-ink-muted">Sin cronómetro activo</span>
+    <a href="{{ url_for('timer.index') }}" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Cronómetro</a>
+    {% endif %}
+    <button type="button" hx-post="{{ url_for('timer.interrupt') }}" hx-target="#timer-bar" hx-swap="outerHTML" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Interrupción</button>
+    {% if paused %}<a href="{{ url_for('timer.index') }}" class="text-ink-muted underline underline-offset-2 hover:text-ink">{{ paused|length }} en pausa</a>{% endif %}
+  </div>
+</div>

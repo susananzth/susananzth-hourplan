@@ -18,12 +18,15 @@ from hourplan.projects.models import (
 )
 from hourplan.reports.models import ComplianceSnapshot, DeviationNote
 from hourplan.resources.models import Resource
+from hourplan.timer.models import AlertFired, AlertSetting, TimerPreference, TimerSession
 from hourplan.timesheet.models import Absence, TimeBankLedger, TimeEntry
 
 metadata = Base.metadata
 
 __all__ = [
     "Absence",
+    "AlertFired",
+    "AlertSetting",
     "Application",
     "AuditLog",
     "CatalogItem",
@@ -46,6 +49,8 @@ __all__ = [
     "Resource",
     "TimeBankLedger",
     "TimeEntry",
+    "TimerPreference",
+    "TimerSession",
     "User",
     "UserRole",
     "WorkItemLink",

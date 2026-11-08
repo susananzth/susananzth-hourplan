@@ -109,7 +109,7 @@ forbidden_modules = ["hourplan.*.services", "hourplan.*.routes", "flask"]
 name = "Feature layers"
 type = "layers"
 layers = [
-  "hourplan.main | hourplan.health | hourplan.setup | hourplan.admin | hourplan.imports",
+  "hourplan.main | hourplan.health | hourplan.setup | hourplan.admin | hourplan.imports | hourplan.timer",
   "hourplan.reports",
   "hourplan.planning",
   "hourplan.timesheet",
