@@ -35,6 +35,7 @@ FIELD_LABELS: Mapping[str, str] = {
     "planned_start": "Inicio previsto",
     "planned_end": "Fin previsto",
     "status": "Estado de la fase",
+    "resource_id": "Persona",
     # Absences.
     "absence_type": "Tipo de ausencia",
     "start_on": "Desde",

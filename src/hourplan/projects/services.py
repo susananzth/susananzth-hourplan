@@ -251,7 +251,10 @@ def planned_span(project: Project) -> tuple[date, date] | None:
 
 def duration_warning(session: Session, project: Project, today: date) -> str | None:
     """Non-blocking suggestion to split a project planned for longer than the policy allows."""
-    span = planned_span(project)
+    return span_warning(session, planned_span(project), today)
+
+
+def span_warning(session: Session, span: tuple[date, date] | None, today: date) -> str | None:
     policy = policies.policy_at(session, WorkPolicy, today)
     if span is None or policy is None:
         return None
