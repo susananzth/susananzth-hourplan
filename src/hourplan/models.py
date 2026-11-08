@@ -16,6 +16,7 @@ from hourplan.projects.models import (
     ProjectPhase,
     WorkItemLink,
 )
+from hourplan.reports.models import ComplianceSnapshot, DeviationNote
 from hourplan.resources.models import Resource
 from hourplan.timesheet.models import Absence, TimeBankLedger, TimeEntry
 
@@ -27,6 +28,8 @@ __all__ = [
     "AuditLog",
     "CatalogItem",
     "ChangeRequest",
+    "ComplianceSnapshot",
+    "DeviationNote",
     "EvaluationPolicy",
     "Holiday",
     "ImportBatch",

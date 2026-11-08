@@ -22,6 +22,8 @@
       <a href="{{ url_for('bank.index') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/banco') %} aria-current="page"{% endif %}>Banco de horas</a>
       <a href="{{ url_for('projects.index') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/proyectos') %} aria-current="page"{% endif %}>Proyectos</a>
       <a href="{{ url_for('planning.gantt_projects') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/planificacion') %} aria-current="page"{% endif %}>Planificación</a>
+      {% if current_user.has_role('admin', 'pm', 'lead') %}<a href="{{ url_for('reports.index') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/informes') %} aria-current="page"{% endif %}>Informes</a>
+      {% elif current_user.has_role('developer') %}<a href="{{ url_for('reports.mine') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/informes') %} aria-current="page"{% endif %}>Mi informe</a>{% endif %}
       {% if nav_links %}
       <nav aria-label="Administración" class="hidden flex-1 flex-wrap gap-1 px-6 md:flex">
         {% for href, label in nav_links %}

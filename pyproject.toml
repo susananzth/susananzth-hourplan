@@ -109,6 +109,7 @@ name = "Feature layers"
 type = "layers"
 layers = [
   "hourplan.main | hourplan.health | hourplan.setup | hourplan.admin | hourplan.imports",
+  "hourplan.reports",
   "hourplan.planning",
   "hourplan.timesheet",
   "hourplan.projects",

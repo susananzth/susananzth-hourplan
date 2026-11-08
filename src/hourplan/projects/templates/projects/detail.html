@@ -8,6 +8,7 @@
   <h1 class="text-2xl font-semibold text-ink">{{ project.code }} · {{ project.title }}</h1>
   <div class="flex gap-2"><a href="{{ url_for('projects.index') }}" class="{{ quiet }}">Volver</a>
     <a href="{{ url_for('planning.project_plan', project_id=project.id) }}" class="{{ quiet }}">Plan y asignaciones</a>
+    {% if current_user.has_role('admin', 'pm', 'lead') %}<a href="{{ url_for('reports.project', project_id=project.id) }}" class="{{ quiet }}">Plan contra real</a>{% endif %}
     {% if can_edit %}<a href="{{ url_for('projects.edit', project_id=project.id) }}" class="{{ primary }}">Editar</a>{% endif %}</div>
 </div>
 <p class="mb-4 text-sm text-ink-muted">
