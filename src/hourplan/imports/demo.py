@@ -14,9 +14,13 @@ from openpyxl import Workbook
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from hourplan.catalogs.models import CatalogItem
 from hourplan.imports import plan, services
 from hourplan.imports.mapping import Mapping
 from hourplan.imports.models import ImportBatch
+from hourplan.projects import cycles
+from hourplan.projects.models import CycleOutcome, Project, ProjectPhase
+from hourplan.reports import compare, notes
 from hourplan.timesheet.models import TimeEntry
 
 RESOURCES = ("Ana Demo", "Luis Demo", "Marta Demo", "Pablo Demo")
@@ -57,7 +61,55 @@ def load_demo(
     plan_file = plan_workbook(workdir / "demo-plan.xlsx", today)
     first: ImportBatch = services.import_hours(session, hours_file, mapping=mapping)
     second: ImportBatch = plan.import_plan(session, plan_file, mapping=mapping)
+    lifecycle(session, today)
     return {"hours_batch": first.id, "plan_batch": second.id, **first.stats}
+
+
+def lifecycle(session: Session, today: date) -> None:
+    """Rounds of verification and a closed project, so the reports have something to show.
+
+    PJ-00001 has a returned round and a new one waiting; PJ-00003 went through a returned
+    round, was approved and then closed with a deviation note.
+    """
+    category = session.scalar(
+        select(CatalogItem).where(
+            CatalogItem.kind == "rework_category", CatalogItem.code == "EXECUTION"
+        )
+    )
+    if category is None:
+        return
+    for code, steps in (
+        ("PJ-00001", ((-20, -18, False), (-10, None, None))),
+        ("PJ-00003", ((-30, -27, False), (-20, -18, True))),
+    ):
+        project = session.scalar(select(Project).where(Project.code == code))
+        phase = session.scalar(
+            select(ProjectPhase).where(
+                ProjectPhase.project_id == (project.id if project else 0),
+                ProjectPhase.name == "Pruebas",
+            )
+        )
+        if project is None or phase is None:
+            continue
+        for sent, resolved, approved in steps:
+            cycle = cycles.submit(session, phase.id, today + timedelta(days=sent), actor_id=None)
+            if resolved is None:
+                continue
+            decision = cycles.Decision(
+                outcome=CycleOutcome.APPROVED if approved else CycleOutcome.RETURNED,
+                resolved_on=today + timedelta(days=resolved),
+                observations=None if approved else "Falta cubrir el caso de fechas límite.",
+                rework_category_id=None if approved else category.id,
+            )
+            cycles.decide(session, cycle.id, decision, decider_id=None)
+        if code == "PJ-00003":
+            compare.close_project(session, project.id, today - timedelta(days=14), actor_id=None)
+            notes.add_note(
+                session,
+                project.id,
+                "Las horas superaron lo planificado por una ronda de pruebas observada.",
+                actor_id=None,
+            )
 
 
 def _monday(day: date) -> date:
