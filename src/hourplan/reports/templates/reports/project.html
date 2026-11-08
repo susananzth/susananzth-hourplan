@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% from "reports/_macros.html" import badge %}
+{% block title %}{{ project.code }} · plan contra real · HourPlan{% endblock %}
+{% block content %}
+{% set input = "rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
+{% set primary = "rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600" %}
+{% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
+{% include "reports/_tabs.html" %}
+{% set ev = evaluation %}
+<div class="mb-2 flex flex-wrap items-center justify-between gap-3">
+  <h1 class="text-2xl font-semibold text-ink">{{ project.code }} · {{ project.title }}</h1>
+  <div class="flex gap-2"><a href="{{ url_for('reports.projects') }}" class="{{ quiet }}">Volver</a>
+    <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="{{ quiet }}">Proyecto</a>
+    <a href="{{ url_for('planning.project_plan', project_id=project.id) }}" class="{{ quiet }}">Plan</a></div>
+</div>
+<p class="mb-4 text-sm text-ink-muted">
+  {% if project.closed_on %}Cerrado el {{ project.closed_on.strftime('%d/%m/%Y') }}{% else %}Abierto: las cifras son provisionales{% endif %}
+  · lo planificado es {{ 'la línea base' if report.plan and report.plan.version.is_baseline else ('la versión ' ~ report.plan.version.number ~ ' del plan' if report.plan else 'inexistente: sin plan no hay desvío') }}.
+</p>
+
+<section aria-labelledby="resumen" class="mb-6">
+  <h2 id="resumen" class="mb-3 text-lg font-semibold text-ink">Cumplimiento{% if snapshot %} <span class="text-sm font-normal text-ink-muted">· guardado el {{ snapshot.evaluated_on.strftime('%d/%m/%Y') }} con la política vigente ese día</span>{% endif %}</h2>
+  <dl class="grid gap-4 rounded-lg border border-line bg-surface-raised p-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div><dt class="text-xs text-ink-muted">Horas planificadas</dt><dd class="text-ink">{{ ('%.1f' | format(ev.planned_hours)) if ev.planned_hours is not none else '—' }} h</dd></div>
+    <div><dt class="text-xs text-ink-muted">Horas reales</dt><dd class="text-ink">{{ '%.1f' | format(ev.actual_hours) }} h <span class="text-xs text-ink-muted">({{ '%.1f' | format(ev.actual_hours - ev.rework_hours) }} iniciales + {{ '%.1f' | format(ev.rework_hours) }} de rework)</span></dd></div>
+    <div><dt class="text-xs text-ink-muted">Desvío de horas</dt><dd>{{ badge(ev.hours_status.value if ev.hours_status else none, ev.hours_pct, status_labels) }}</dd></div>
+    <div><dt class="text-xs text-ink-muted">Desvío de fechas</dt><dd>{{ badge(ev.dates_status.value if ev.dates_status else none, ev.dates_pct, status_labels) }}{% if ev.planned_days %} <span class="text-xs text-ink-muted">({{ ev.actual_days or '—' }} de {{ ev.planned_days }} días)</span>{% endif %}</dd></div>
+  </dl>
+  {% if not ev.colors_enabled %}<p class="mt-2 text-xs text-ink-muted">Los colores están apagados o no hay política vigente: solo se muestran las cifras.</p>{% endif %}
+  {% if ev.policy %}<p class="mt-2 text-xs text-ink-muted">Política: horas ±{{ ev.policy.hours_tolerance_pct }} % (rojo desde {{ ev.policy.hours_red_pct }} %), fechas ±{{ ev.policy.dates_tolerance_pct }} % (rojo desde {{ ev.policy.dates_red_pct }} %), vigente desde el {{ ev.policy.effective_from.strftime('%d/%m/%Y') }}.</p>{% endif %}
+
+  <div class="mt-4 flex flex-wrap items-end gap-3">
+    {% if not project.closed_on %}
+    <form method="post" action="{{ url_for('reports.close', project_id=project.id) }}" class="flex flex-wrap items-end gap-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div><label for="cierre" class="mb-1 block text-xs text-ink-muted">Fecha de cierre</label>
+        <input id="cierre" name="cierre" type="date" required value="{{ today.isoformat() }}" class="{{ input }}"></div>
+      <button type="submit" class="{{ primary }}">Cerrar y guardar evaluación</button>
+    </form>
+    {% elif not snapshot %}
+    <form method="post" action="{{ url_for('reports.save_evaluation', project_id=project.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="{{ primary }}">Guardar evaluación con la política de la fecha de cierre</button>
+    </form>
+    {% endif %}
+    {% if project.closed_on %}<a href="{{ url_for('reports.project', project_id=project.id, recalcular=1) }}" class="{{ quiet }}">Recalcular con la política actual</a>{% endif %}
+  </div>
+  {% if recalculated %}
+  <div class="mt-4 rounded-lg border border-line-strong bg-surface-raised p-4 text-sm" role="status">
+    <p class="mb-2 font-medium text-ink">Recalculado con la política actual (no se guarda ni cambia el histórico)</p>
+    <p class="text-ink">Horas: {{ badge(recalculated.hours_status.value if recalculated.hours_status else none, recalculated.hours_pct, status_labels) }} · Fechas: {{ badge(recalculated.dates_status.value if recalculated.dates_status else none, recalculated.dates_pct, status_labels) }}</p>
+  </div>
+  {% endif %}
+</section>
+
+<section aria-labelledby="fases" class="mb-6">
+  <h2 id="fases" class="mb-3 text-lg font-semibold text-ink">Por fase</h2>
+  <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
+    <table class="w-full text-left text-sm">
+      <thead class="border-b border-line text-ink-muted"><tr>
+        <th scope="col" class="px-4 py-2 font-medium">Fase</th>
+        <th scope="col" class="px-4 py-2 text-right font-medium">Planificado</th>
+        <th scope="col" class="px-4 py-2 text-right font-medium">Real</th>
+        <th scope="col" class="px-4 py-2 text-right font-medium">Rework</th>
+        <th scope="col" class="px-4 py-2 font-medium">Fechas previstas</th>
+        <th scope="col" class="px-4 py-2 font-medium">Fechas reales</th>
+      </tr></thead>
+      <tbody>
+        {% for l in report.phases %}
+        <tr class="border-b border-line last:border-0">
+          <th scope="row" class="px-4 py-2 font-medium text-ink">{{ l.phase.name if l.phase else 'Sin fase' }}</th>
+          <td class="px-4 py-2 text-right text-ink">{{ '%.1f' | format(l.planned_hours) }}</td>
+          <td class="px-4 py-2 text-right text-ink">{{ '%.1f' | format(l.actual_hours) }}</td>
+          <td class="px-4 py-2 text-right text-ink">{{ '%.1f' | format(l.rework_hours) }}</td>
+          <td class="px-4 py-2 text-ink">{% if l.phase and l.phase.planned_start %}{{ l.phase.planned_start.strftime('%d/%m') }} – {{ l.phase.planned_end.strftime('%d/%m') }}{% else %}—{% endif %}</td>
+          <td class="px-4 py-2 text-ink">{% if l.actual_start %}{{ l.actual_start.strftime('%d/%m') }} – {{ l.actual_end.strftime('%d/%m') }}{% else %}—{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="px-4 py-6 text-center text-ink-muted">Sin fases ni horas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="rework" class="mb-6">
+  <h2 id="rework" class="mb-3 text-lg font-semibold text-ink">Rework</h2>
+  <ul class="space-y-1 text-sm text-ink">
+    {% for name, hours in report.rework_by_category %}<li>{{ name }}: {{ '%.1f' | format(hours) }} h</li>
+    {% else %}<li class="text-ink-muted">Sin rework de verificación o aprobación.</li>{% endfor %}
+    <li class="pt-2 text-ink-muted">Post-producción: {{ report.ticket_count }} ticket{{ '' if report.ticket_count == 1 else 's' }} causado{{ '' if report.ticket_count == 1 else 's' }} por este proyecto, {{ '%.1f' | format(report.ticket_hours) }} h.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="notas" class="mb-6">
+  <h2 id="notas" class="mb-3 text-lg font-semibold text-ink">Notas de desvío</h2>
+  <form method="post" action="{{ url_for('reports.add_note', project_id=project.id) }}" class="mb-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="nota" class="mb-1 block text-sm font-medium text-ink">Explica el desvío, sin señalar personas</label>
+    <textarea id="nota" name="nota" rows="3" maxlength="5000" required class="block w-full {{ input }}"></textarea>
+    <button type="submit" class="mt-2 {{ primary }}">Agregar nota</button>
+  </form>
+  <ul class="space-y-3">
+    {% for n in notes %}<li class="rounded-lg border border-line bg-surface-raised p-3 text-sm text-ink"><p class="whitespace-pre-line">{{ n.body }}</p><p class="mt-1 text-xs text-ink-muted">{{ n.created_at.strftime('%d/%m/%Y') }}</p></li>
+    {% else %}<li class="text-sm text-ink-muted">Sin notas.</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}

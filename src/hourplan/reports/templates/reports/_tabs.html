@@ -1,0 +1,8 @@
+{% set tab = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface-raised hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600 aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink" %}
+<nav aria-label="Informes" class="mb-6 flex flex-wrap gap-1 border-b border-line pb-2">
+  {% if current_user.has_role('admin', 'pm', 'lead') %}
+  <a href="{{ url_for('reports.index') }}" class="{{ tab }}"{% if request.endpoint == 'reports.index' %} aria-current="page"{% endif %}>Panel de horas</a>
+  <a href="{{ url_for('reports.projects') }}" class="{{ tab }}"{% if request.endpoint in ('reports.projects', 'reports.project') %} aria-current="page"{% endif %}>Plan contra real</a>
+  {% endif %}
+  <a href="{{ url_for('reports.mine') }}" class="{{ tab }}"{% if request.endpoint == 'reports.mine' %} aria-current="page"{% endif %}>Mi informe</a>
+</nav>
