@@ -215,3 +215,10 @@ def test_llm_with_another_line_count_replaces_the_rules() -> None:
     assert [line.project_id for line in lines] == [1, None]
     assert lines[1].activity_bucket_id == 31
     assert any("otro número" in note for note in lines[0].notes)
+
+
+def test_noise_tags_are_dropped() -> None:
+    assert extract.clean_transcript("[MÚSICA]") == ""
+    assert extract.clean_transcript(" [BLANK_AUDIO] dos horas (música) en PJ-00001 ") == (
+        "dos horas en PJ-00001"
+    )

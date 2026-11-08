@@ -10,6 +10,7 @@ from werkzeug.test import TestResponse
 from hourplan.auth import services as auth
 from hourplan.auth.models import User
 from hourplan.auth.roles import Role
+from hourplan.catalogs.models import CatalogItem, CatalogKind
 from hourplan.projects.models import Project
 from hourplan.resources.models import Resource
 from hourplan.timer import alerts, services
@@ -359,3 +360,138 @@ def test_observer_has_no_timer(
     auth.grant_role(session, user, Role.OBSERVER, actor_id=None)
     login(user.email)
     assert client.get("/cronometro").status_code == 403
+
+
+# --------------------------------------------------------------------------- switching
+
+
+def test_switch_saves_the_task_and_keeps_the_clock(
+    session: Session, resource: Resource, project: Project, other: Project
+) -> None:
+    first = services.start(session, resource.id, RowKey(project_id=project.id), at(0))
+    beats(session, resource, 1, 10)
+    entry, second = services.switch(
+        session, resource.id, RowKey(project_id=other.id), at(10), actor_id=None
+    )
+    assert entry is not None
+    assert entry.project_id == project.id
+    assert entry.hours == Decimal("0.25")
+    session.refresh(first)
+    assert first.status == TimerStatus.STOPPED
+    assert second.status == TimerStatus.RUNNING
+    assert second.project_id == other.id
+    assert second.chain_seconds == 600
+    beats(session, resource, 11, 15)
+    assert second.chain_seconds + services.elapsed_seconds(second, at(15)) == 900
+
+
+def test_switch_under_a_minute_saves_nothing(
+    session: Session, resource: Resource, project: Project, other: Project
+) -> None:
+    services.start(session, resource.id, RowKey(project_id=project.id), at(0))
+    entry, second = services.switch(
+        session, resource.id, RowKey(project_id=other.id), at(0.5), actor_id=None
+    )
+    assert entry is None
+    assert session.scalars(select(TimeEntry)).all() == []
+    assert second.chain_seconds == 30
+
+
+def test_switch_classifies_an_unclassified_interruption(
+    session: Session, resource: Resource, project: Project
+) -> None:
+    timer = services.interrupt(session, resource.id, at(0))
+    beats(session, resource, 1, 5)
+    entry, same = services.switch(
+        session, resource.id, RowKey(project_id=project.id), at(5), actor_id=None
+    )
+    assert entry is None
+    assert same.id == timer.id
+    assert same.project_id == project.id
+    assert same.status == TimerStatus.RUNNING
+
+
+def test_switch_without_running_timer_just_starts(
+    session: Session, resource: Resource, project: Project
+) -> None:
+    entry, timer = services.switch(
+        session, resource.id, RowKey(project_id=project.id), at(0), actor_id=None
+    )
+    assert entry is None
+    assert timer.status == TimerStatus.RUNNING
+    with pytest.raises(services.TimerError):
+        services.switch(session, resource.id, RowKey(), at(1), actor_id=None)
+
+
+def hx(client, path: str, **data: str):  # type: ignore[no-untyped-def]
+    return client.post(
+        path,
+        data={"csrf_token": csrf_token(client, "/cronometro"), **data},
+        headers={"HX-Request": "true"},
+    )
+
+
+def test_bar_starts_switches_and_ends_in_place(
+    client, me: Resource, project: Project, other: Project, session: Session
+) -> None:  # type: ignore[no-untyped-def]
+    idle = hx(client, "/cronometro/latido").get_data(as_text=True)
+    assert "¿En qué trabajas?" in idle
+    assert "Interrupción" not in idle  # only offered while something runs
+
+    started = hx(client, "/cronometro/iniciar", nueva=f"{project.id},,,")
+    assert started.status_code == 200
+    html = started.get_data(as_text=True)
+    assert 'id="timer-bar"' in html
+    assert "Cambiar tarea" in html
+    assert "Terminar" in html
+    first = session.scalars(select(TimerSession)).one()
+    first.segment_started_at = first.started_at = first.segment_started_at - timedelta(minutes=20)
+    first.last_beat_at = first.segment_started_at + timedelta(minutes=20)
+    session.commit()
+
+    switched = hx(client, "/cronometro/cambiar", nueva=f"{other.id},,,").get_data(as_text=True)
+    assert "Guardado: PJ-00001" in switched
+    assert "en esta tarea" in switched
+    current = session.scalars(
+        select(TimerSession).where(TimerSession.status == TimerStatus.RUNNING)
+    ).one()
+    assert current.project_id == other.id
+
+    # Under a minute it cannot be saved; the error shows inside the bar.
+    early = hx(client, f"/cronometro/detener/{current.id}").get_data(as_text=True)
+    assert "menos de un minuto" in early
+    assert 'role="alert"' in early
+
+    gone = hx(client, f"/cronometro/descartar/{current.id}").get_data(as_text=True)
+    assert "Cronómetro descartado" in gone
+    assert "¿En qué trabajas?" in gone
+
+
+def test_bar_stop_keeps_the_task_type(
+    client, me: Resource, project: Project, session: Session
+) -> None:  # type: ignore[no-untyped-def]
+    task_type = CatalogItem(kind=CatalogKind.TASK_TYPE.value, code="SUP", name="Soporte")
+    session.add(task_type)
+    session.commit()
+    hx(client, "/cronometro/iniciar", nueva=f"{project.id},,,")
+    timer = session.scalars(select(TimerSession)).one()
+    timer.segment_started_at = timer.started_at = timer.started_at - timedelta(minutes=30)
+    timer.last_beat_at = timer.segment_started_at + timedelta(minutes=30)
+    session.commit()
+    done = hx(client, f"/cronometro/detener/{timer.id}", tipo=str(task_type.id), descripcion="Ok")
+    assert "Guardado: PJ-00001 · Portal · 0,50 h" in done.get_data(as_text=True)
+    entry = session.scalars(select(TimeEntry)).one()
+    assert entry.task_type_id == task_type.id
+    assert entry.description == "Ok"
+
+
+def test_paused_timer_stays_in_the_bar(
+    client, me: Resource, project: Project, session: Session
+) -> None:  # type: ignore[no-untyped-def]
+    hx(client, "/cronometro/iniciar", nueva=f"{project.id},,,")
+    timer = session.scalars(select(TimerSession)).one()
+    paused = hx(client, f"/cronometro/pausar/{timer.id}").get_data(as_text=True)
+    assert "Reanudar" in paused
+    assert "En pausa" in paused
+    assert "Terminar" in paused
+    assert "Cambiar tarea" not in paused

@@ -57,7 +57,9 @@ voice-models: ## Download a Whisper model into the volume (make voice-models M=s
 	$(COMPOSE) --profile voice-models run --rm voice-models flask voice-fetch-model $(or $(M),small)
 
 voice-up: ## Start dictation: Whisper + worker (add LLM=1 for the local LLM)
-	$(COMPOSE) --profile voice $(if $(LLM),--profile voice-llm) up -d --build --wait db web whisper voice-worker $(if $(LLM),llm)
+	$(COMPOSE) up -d --build --wait db web
+	$(MAKE) migrate
+	$(COMPOSE) --profile voice $(if $(LLM),--profile voice-llm) up -d --build --wait whisper voice-worker $(if $(LLM),llm)
 
 e2e: css ## Browser tests (Playwright in Docker) on a throwaway database; also refreshes docs/capturas
 	$(COMPOSE) up -d --wait db
