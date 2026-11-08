@@ -71,5 +71,55 @@ services:
       - .:/app
     command: sh -c "npm ci --no-audit --no-fund && npm run dev"
 
+  # E2E: the app on its own throwaway database, filled with the fictitious demo data.
+  e2e-app:
+    profiles: [e2e]
+    build:
+      context: .
+      target: dev
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      HOURPLAN_ENV: development
+      SECRET_KEY: e2e-only-not-a-secret
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-hourplan}:${POSTGRES_PASSWORD:-hourplan}@db:5432/hourplan_e2e
+    volumes:
+      - .:/app
+    command: >
+      sh -c "alembic upgrade head && flask seed && flask demo-data
+      && flask create-user --email admin@example.test --name 'Ana Demo' --role admin --role pm
+      --password e2e-clave-larga-123 && flask link-resource admin@example.test
+      && flask run --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/healthz >/dev/null"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Headless Chromium (official Playwright image, version pinned to the pip package).
+  e2e:
+    profiles: [e2e]
+    image: mcr.microsoft.com/playwright/python:v1.64.1-noble
+    ipc: host
+    init: true
+    working_dir: /e2e
+    environment:
+      BASE_URL: http://e2e-app:8000
+      SCREENSHOTS_DIR: /capturas
+      HOST_UID: ${UID:-1000}
+      HOST_GID: ${GID:-1000}
+    volumes:
+      - ./tests/e2e:/e2e:ro
+      - ./docs/capturas:/capturas
+    command: >
+      sh -c "pip install -q --break-system-packages playwright==1.64.1 pytest pytest-playwright
+      && pytest -p no:cacheprovider -q ${E2E_ARGS:-.};
+      status=$$?; chown -R $$HOST_UID:$$HOST_GID /capturas; exit $$status"
+    depends_on:
+      e2e-app:
+        condition: service_healthy
+
 volumes:
   pgdata:

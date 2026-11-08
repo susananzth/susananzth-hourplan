@@ -5,7 +5,7 @@ export UID := $(shell id -u)
 export GID := $(shell id -g)
 
 .DEFAULT_GOAL := help
-.PHONY: help up down logs migrate seed user demo dev test test-fast lint format lock audit build
+.PHONY: help up down logs migrate seed user demo dev test test-fast lint format lock audit build e2e css
 
 help: ## Show available commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -49,6 +49,15 @@ format: ## Format and auto-fix
 
 audit: ## Known vulnerabilities in dependencies
 	$(DEV) sh -c "uv export --frozen --no-dev --no-hashes --no-emit-project -o /tmp/req.txt && pip-audit --no-deps --disable-pip -r /tmp/req.txt"
+
+css: ## Rebuild the compiled CSS and vendored scripts (needed after template changes)
+	docker run --rm -u $(UID):$(GID) -e HOME=/tmp -v "$(CURDIR)":/app -w /app node:24.22.2-alpine3.24 sh -c "npm ci --no-audit --no-fund && npm run build"
+
+e2e: css ## Browser tests (Playwright in Docker) on a throwaway database; also refreshes docs/capturas
+	$(COMPOSE) up -d --wait db
+	$(COMPOSE) exec -T db sh -c 'psql -U "$$POSTGRES_USER" -d postgres -c "DROP DATABASE IF EXISTS hourplan_e2e WITH (FORCE)" -c "CREATE DATABASE hourplan_e2e"'
+	mkdir -p docs/capturas
+	$(COMPOSE) --profile e2e run --rm e2e; status=$$?; $(COMPOSE) --profile e2e down e2e-app; exit $$status
 
 lock: ## Update uv.lock and package-lock.json
 	docker run --rm -u $(UID):$(GID) -e HOME=/tmp -v "$(CURDIR)":/app -w /app $(UV_IMAGE) uv lock

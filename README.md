@@ -2,7 +2,7 @@
 
 Gestor liviano de cartera de proyectos, planificación por recurso, registro de horas y comparativa plan vs real. Genérico y configurable: las fases, los catálogos y las políticas son datos, no código.
 
-> Estado: en desarrollo temprano. Esta versión incluye la base de la aplicación (autenticación, base de datos, contenedores y CI); el registro de horas, la cartera y los reportes llegarán en las próximas versiones.
+> Estado: MVP. Registro de horas en grilla semanal, ausencias y banco de horas, cartera de proyectos con rondas de verificación y aprobación, planificación con línea base y Gantt, informes de plan contra real, e importación y exportación de Excel. Falta el cronómetro y las alertas.
 
 ## Stack
 
@@ -24,7 +24,10 @@ cp .env.example .env          # cambia SECRET_KEY antes de usarlo fuera de tu eq
 make up                       # construye, arranca y aplica las migraciones
 make seed                     # catálogos, plantillas de fases y políticas iniciales
 make user                     # crea la primera cuenta (asigna roles con --role admin…)
+flask link-resource CORREO    # vincula esa cuenta con su recurso para registrar horas
 ```
+
+Para probarla con datos ficticios en una base vacía: `make demo` (proyectos `PJ-00001…`, rondas observadas y un proyecto cerrado).
 
 Los roles son `admin`, `pm`, `lead`, `developer` y `observer`; un usuario puede tener varios. Para cambiarlos: `flask grant-role CORREO ROL` y `flask revoke-role CORREO ROL`.
 
@@ -57,6 +60,7 @@ make test                     # suite completa con cobertura (mínimo 80 %)
 make test-fast K=login        # solo las pruebas que coinciden con K
 make lint                     # Ruff, formato, mypy y contratos de arquitectura
 make audit                    # vulnerabilidades conocidas en dependencias
+make e2e                      # pruebas de navegador (Playwright en Docker, base descartable)
 ```
 
 Para los hooks locales: `uvx pre-commit install`.
@@ -81,7 +85,14 @@ Repetir el mismo archivo se rechaza y las filas ya guardadas se omiten. Con Dock
 
 ## Capturas
 
-Se agregarán cuando estén listas las primeras pantallas funcionales.
+Con datos de demostración (`make e2e` las regenera).
+
+| | |
+|---|---|
+| ![Inicio](docs/capturas/00-inicio.png) | ![Mis horas](docs/capturas/01-horas.png) |
+| ![Proyectos](docs/capturas/02-proyectos.png) | ![Rondas de un proyecto](docs/capturas/03-proyecto-rondas.png) |
+| ![Gantt](docs/capturas/04-gantt.png) | ![Informes](docs/capturas/05-informes.png) |
+| ![Plan contra real](docs/capturas/06-plan-vs-real.png) | ![Proyecto cerrado](docs/capturas/07-proyecto-cerrado.png) |
 
 ## Licencia
 

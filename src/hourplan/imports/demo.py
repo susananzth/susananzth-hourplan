@@ -11,10 +11,11 @@ from decimal import Decimal
 from pathlib import Path
 
 from openpyxl import Workbook
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from hourplan.catalogs.models import CatalogItem
+from hourplan.db import transaction
 from hourplan.imports import plan, services
 from hourplan.imports.mapping import Mapping
 from hourplan.imports.models import ImportBatch
@@ -65,12 +66,31 @@ def load_demo(
     return {"hours_batch": first.id, "plan_batch": second.id, **first.stats}
 
 
+def _link_phases(session: Session) -> None:
+    """Point imported hours at the project phase with the same name as their source phase."""
+    phase_id = (
+        select(ProjectPhase.id)
+        .where(
+            ProjectPhase.project_id == TimeEntry.project_id,
+            func.lower(ProjectPhase.name) == func.lower(TimeEntry.source_phase),
+        )
+        .scalar_subquery()
+    )
+    with transaction(session):
+        session.execute(
+            update(TimeEntry)
+            .where(TimeEntry.project_phase_id.is_(None), TimeEntry.source_phase.is_not(None))
+            .values(project_phase_id=phase_id)
+        )
+
+
 def lifecycle(session: Session, today: date) -> None:
     """Rounds of verification and a closed project, so the reports have something to show.
 
     PJ-00001 has a returned round and a new one waiting; PJ-00003 went through a returned
     round, was approved and then closed with a deviation note.
     """
+    _link_phases(session)
     category = session.scalar(
         select(CatalogItem).where(
             CatalogItem.kind == "rework_category", CatalogItem.code == "EXECUTION"
