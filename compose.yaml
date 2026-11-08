@@ -176,6 +176,9 @@ services:
       target: runtime
     user: root
     environment:
+      <<: *database-url
+      # Only the download runs here; development mode supplies a throwaway SECRET_KEY.
+      HOURPLAN_ENV: development
       VOICE_MODELS_DIR: /models
     volumes:
       - voice-models:/models
