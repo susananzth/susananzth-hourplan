@@ -82,7 +82,7 @@
       <input type="hidden" name="semana" value="{{ start.isoformat() }}">
       {% for e in extras %}<input type="hidden" name="extra" value="{{ e }}">{% endfor %}
       <label for="buscar" class="mb-1 block text-sm font-medium text-ink">Agregar fila</label>
-      <input id="buscar" type="search" name="q" autocomplete="off" placeholder="Código, título o actividad" hx-get="{{ url_for('timesheet.search') }}" hx-trigger="input changed delay:300ms, search" hx-target="#resultados" aria-controls="resultados" class="block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
+      <input id="buscar" type="search" name="q" autocomplete="off" placeholder="Código, título o actividad" hx-get="{{ url_for('timesheet.search') }}" hx-trigger="input changed delay:300ms, search" hx-target="#resultados" hx-swap="innerHTML" aria-controls="resultados" class="block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
       <ul id="resultados" class="mt-2 max-h-60 overflow-y-auto"></ul>
     </form>
 

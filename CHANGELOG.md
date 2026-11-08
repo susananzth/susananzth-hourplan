@@ -5,6 +5,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 ## [Sin publicar]
 
 ### Añadido
+- Pruebas de navegador (`make e2e`) con Playwright en Docker sobre una base descartable con los datos demo; de paso regeneran las capturas de `docs/capturas`. `make css` reconstruye el CSS compilado.
+- `flask link-resource CORREO` vincula una cuenta con su recurso (reutiliza uno libre con ese nombre); sin ese vínculo no se pueden registrar horas.
+- `make demo` ahora incluye una ronda observada, una ronda pendiente y un proyecto cerrado con su nota de desvío.
+- Inicio con accesos a las áreas principales.
 - Importación de hojas de horas de Excel (una fila por tarea y día pasa a una entrada de horas por día): `flask import-hours`, `import-report` e `import-revert`. Es idempotente, reversible por lote y genera un informe de calidad (códigos no válidos, tickets múltiples, horas fuera de rango, títulos distintos para un mismo código). Las ausencias se guardan aparte. Mapeo ajustable con `import_mapping.toml` en el overlay.
 - Esquema del dominio: proyectos y tickets con código externo, plantillas y fases configurables, ciclos de verificación y aprobación, solicitudes de cambio, enlaces entre trabajos, versiones de plan y asignaciones, entradas de horas, ausencias y banco de horas.
 - Catálogos configurables, carteras, aplicaciones y repositorios; recursos asignables con o sin cuenta.

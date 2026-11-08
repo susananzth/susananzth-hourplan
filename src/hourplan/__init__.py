@@ -23,6 +23,7 @@ def create_app(config_name: str | None = None, overrides: dict[str, Any] | None 
     from hourplan.planning import routes as planning_routes
     from hourplan.projects import routes as project_routes
     from hourplan.reports import routes as report_routes
+    from hourplan.resources import cli as resources_cli
     from hourplan.setup import cli as setup_cli
     from hourplan.shared.errors import init_error_handlers
     from hourplan.shared.security import init_security_headers
@@ -40,6 +41,7 @@ def create_app(config_name: str | None = None, overrides: dict[str, Any] | None 
     app.register_blueprint(health_routes.bp)
     app.register_blueprint(auth_routes.bp)
     app.register_blueprint(auth_cli.bp)
+    app.register_blueprint(resources_cli.bp)
     app.register_blueprint(main_routes.bp)
     app.register_blueprint(admin_routes.bp)
     app.register_blueprint(timesheet_routes.bp)

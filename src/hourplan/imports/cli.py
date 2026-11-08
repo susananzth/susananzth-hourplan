@@ -78,7 +78,7 @@ def demo_data_command() -> None:
     """Load fictitious hours and plan (only into a database without hours)."""
     try:
         mapping = load_mapping(_mapping_path())
-        with tempfile.TemporaryDirectory() as workdir, transaction(db.session):
+        with tempfile.TemporaryDirectory() as workdir:
             stats = demo.load_demo(db.session, Path(workdir), mapping)
     except (demo.DemoRefusedError, services.ImportRejectedError, ValueError) as err:
         raise click.ClickException(str(err)) from err

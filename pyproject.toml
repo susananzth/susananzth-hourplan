@@ -74,6 +74,7 @@ disallow_subclassing_any = false
 [tool.pytest]
 minversion = "9.0"
 testpaths = ["tests"]
+norecursedirs = ["e2e"]
 addopts = ["-ra", "--strict-markers", "--strict-config"]
 
 [tool.coverage.run]
