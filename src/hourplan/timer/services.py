@@ -281,6 +281,47 @@ def stop(
     return entry
 
 
+def switch(
+    session: Session,
+    resource_id: int,
+    key: RowKey,
+    now: datetime,
+    *,
+    actor_id: int | None,
+) -> tuple[TimeEntry | None, TimerSession]:
+    """Save the running task and go on with ``key`` without restarting the bar's clock.
+
+    Under a minute nothing is saved. An unclassified interruption is classified instead.
+    """
+    if key.project_id is None and key.activity_bucket_id is None:
+        raise TimerError(
+            f"Indica {label('project_id').lower()} o {label('activity_bucket_id').lower()}."
+        )
+    timesheet.EntryData(work_date=now.date(), hours=QUARTER, **asdict(key))  # validates the key
+    current = running(session, resource_id, now)
+    if current is None:
+        return None, start(session, resource_id, key, now)
+    if (
+        current.is_interruption
+        and current.project_id is None
+        and current.activity_bucket_id is None
+    ):
+        with transaction(session):
+            for name, value in asdict(key).items():
+                setattr(current, name, value)
+        return None, current
+    carried = current.chain_seconds + elapsed_seconds(current, now)
+    entry = None
+    if elapsed_seconds(current, now) >= MIN_SECONDS:
+        entry = stop(session, resource_id, current.id, now, actor_id=actor_id)
+    else:
+        discard(session, resource_id, current.id, now)
+    timer = start(session, resource_id, key, now)
+    with transaction(session):
+        timer.chain_seconds = carried
+    return entry, timer
+
+
 def apply_idle(
     session: Session, resource_id: int, seconds: int, choice: str, now: datetime
 ) -> TimerSession | None:

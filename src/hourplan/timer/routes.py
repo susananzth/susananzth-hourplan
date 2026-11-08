@@ -67,19 +67,40 @@ def _label(session: Any, timer: TimerSession) -> str:
     )
 
 
-def _bar(resource: Resource) -> str:
+def _task_types() -> list[CatalogItem]:
+    return list(
+        db.session.scalars(
+            select(CatalogItem)
+            .where(CatalogItem.kind == CatalogKind.TASK_TYPE.value, CatalogItem.is_active)
+            .order_by(CatalogItem.name)
+        )
+    )
+
+
+def _bar(resource: Resource, *, error: str | None = None, notice: str | None = None) -> str:
     now = _now()
     services.settle(db.session, resource.id, now)
     current = services.heartbeat(db.session, resource.id, now) if request.method == "POST" else None
     open_ = services.open_timers(db.session, resource.id, now)
     found = alerts.pending(db.session, resource.id, now) if request.method == "POST" else []
-    shown = current or next((t for t in open_ if t.status == "running"), None)
+    running = current or next((t for t in open_ if t.status == "running"), None)
+    # Without a running timer the bar offers the last paused one, so it can be resumed or ended.
+    shown = running or (open_[-1] if open_ else None)
+    elapsed = services.elapsed_seconds(shown, now) if shown else 0
     return render_template(
         "timer/_bar.html",
         timer=shown,
+        is_running=running is not None,
+        unclassified=bool(shown and shown.project_id is None and shown.activity_bucket_id is None),
         paused=[t for t in open_ if t is not shown],
         label=_label(db.session, shown) if shown else "",
-        elapsed=services.elapsed_seconds(shown, now) if shown else 0,
+        elapsed=elapsed,
+        total=(shown.chain_seconds + elapsed) if shown else 0,
+        favorites=[] if shown else timesheet.favorites(db.session, resource.id)[:5],
+        task_types=_task_types() if shown else [],
+        encode_key=encode_key,
+        error=error,
+        notice=notice,
         idle_seconds=services.idle_minutes(db.session, resource.id) * 60,
         alerts=[
             {
@@ -89,6 +110,17 @@ def _bar(resource: Resource) -> str:
             for a in found
         ],
     )
+
+
+def _reply(resource: Resource, *, error: str | None = None, notice: str | None = None) -> Any:
+    """The bar answers its own HTMX requests in place; the page gets a redirect and a flash."""
+    if request.headers.get("HX-Request") == "true":
+        return _bar(resource, error=error, notice=notice)
+    if error:
+        flash(error, "error")
+    elif notice:
+        flash(notice)
+    return _back()
 
 
 @bp.route("/latido", methods=["GET", "POST"])
@@ -114,79 +146,121 @@ def index() -> str:
         "timer/index.html",
         timers=[(t, _label(db.session, t), services.elapsed_seconds(t, now)) for t in timers],
         idle_minutes=services.idle_minutes(db.session, resource.id),
-        task_types=db.session.scalars(
-            select(CatalogItem)
-            .where(CatalogItem.kind == CatalogKind.TASK_TYPE.value, CatalogItem.is_active)
-            .order_by(CatalogItem.name)
-        ).all(),
+        task_types=_task_types(),
         encode_key=encode_key,
         choices=services.IDLE_CHOICES,
     )
 
 
-def _run(action: Any, *args: Any, **kwargs: Any) -> Response:
+class _FailedError(Exception):
+    def __init__(self, reply: Any) -> None:
+        self.reply = reply
+
+
+def _run(resource: Resource, action: Any, *args: Any, **kwargs: Any) -> Any:
+    """Run a service call; on a user error raise ``_FailedError`` carrying the reply to send."""
     try:
-        action(db.session, *args, **kwargs)
+        return action(db.session, *args, **kwargs)
     except (services.TimerError, timesheet.EntryError, ValidationError) as err:
         db.session.rollback()
-        flash(_message(err), "error")
-    return _back()
+        raise _FailedError(_reply(resource, error=_message(err))) from err
+
+
+@bp.errorhandler(_FailedError)
+def _failed(err: _FailedError) -> Any:
+    return err.reply
+
+
+def _saved(entry: TimeEntry | None) -> str | None:
+    if entry is None:
+        return None
+    hours = f"{entry.hours:.2f}".replace(".", ",")
+    key = RowKey(project_id=entry.project_id, activity_bucket_id=entry.activity_bucket_id)
+    return f"Guardado: {timesheet.target_label(db.session, key)} · {hours} h"
+
+
+def _picked() -> RowKey | None:
+    raw = request.form.get("nueva", "")
+    return decode_key(raw) if raw else None
 
 
 @bp.post("/iniciar")
 @roles_required(*WRITERS)
-def start() -> Response:
+def start() -> Any:
     resource = _need_resource()
-    raw = request.form.get("nueva", "")
-    if not raw:
-        flash("Elige un proyecto o una actividad para iniciar.", "error")
-        return _back()
-    return _run(
+    key = _picked()
+    if key is None:
+        return _reply(resource, error="Elige un proyecto o una actividad para iniciar.")
+    _run(
+        resource,
         services.start,
         resource.id,
-        decode_key(raw),
+        key,
         _now(),
         description=request.form.get("descripcion"),
     )
+    return _reply(resource)
+
+
+@bp.post("/cambiar")
+@roles_required(*WRITERS)
+def switch() -> Any:
+    """Save the running task and continue on another one; the bar's clock keeps going."""
+    resource = _need_resource()
+    key = _picked()
+    if key is None:
+        return _reply(resource, error="Elige la nueva tarea.")
+    entry, _ = _run(
+        resource, services.switch, resource.id, key, _now(), actor_id=int(current_user.id)
+    )
+    return _reply(resource, notice=_saved(entry))
 
 
 @bp.post("/pausar/<int:timer_id>")
 @roles_required(*WRITERS)
-def pause(timer_id: int) -> str:
+def pause(timer_id: int) -> Any:
     resource = _need_resource()
-    try:
-        services.pause(db.session, resource.id, timer_id, _now())
-    except services.TimerError:
-        db.session.rollback()
-    return _bar(resource)
+    _run(resource, services.pause, resource.id, timer_id, _now())
+    return _reply(resource)
 
 
 @bp.post("/reanudar/<int:timer_id>")
 @roles_required(*WRITERS)
-def resume(timer_id: int) -> Response:
-    return _run(services.resume, _need_resource().id, timer_id, _now())
+def resume(timer_id: int) -> Any:
+    resource = _need_resource()
+    _run(resource, services.resume, resource.id, timer_id, _now())
+    return _reply(resource)
 
 
 @bp.post("/interrupcion")
 @roles_required(*WRITERS)
-def interrupt() -> str:
+def interrupt() -> Any:
     resource = _need_resource()
     services.interrupt(db.session, resource.id, _now())
-    return _bar(resource)
+    return _reply(resource)
 
 
 @bp.post("/detener/<int:timer_id>")
 @roles_required(*WRITERS)
-def stop(timer_id: int) -> Response:
+def stop(timer_id: int) -> Any:
     resource = _need_resource()
-    raw = request.form.get("nueva", "")
-    key = None
-    if raw:
-        key = decode_key(raw)
+    key = _picked()
     task_type = request.form.get("tipo", "")
-    if key is not None and task_type.isdigit():
-        key = RowKey(key.project_id, key.activity_bucket_id, key.project_phase_id, int(task_type))
-    return _run(
+    if task_type.isdigit():
+        base = key
+        if base is None:
+            timer = db.session.get(TimerSession, timer_id)
+            base = (
+                RowKey(timer.project_id, timer.activity_bucket_id, timer.project_phase_id)
+                if timer is not None and timer.resource_id == resource.id
+                else None
+            )
+        if base is not None:
+            key = RowKey(
+                base.project_id, base.activity_bucket_id, base.project_phase_id, int(task_type)
+            )
+    entry = _run(
+        resource,
         services.stop,
         resource.id,
         timer_id,
@@ -196,12 +270,15 @@ def stop(timer_id: int) -> Response:
         ai_assisted=request.form.get("ia") == "1",
         actor_id=int(current_user.id),
     )
+    return _reply(resource, notice=_saved(entry))
 
 
 @bp.post("/descartar/<int:timer_id>")
 @roles_required(*WRITERS)
-def discard(timer_id: int) -> Response:
-    return _run(services.discard, _need_resource().id, timer_id, _now())
+def discard(timer_id: int) -> Any:
+    resource = _need_resource()
+    _run(resource, services.discard, resource.id, timer_id, _now())
+    return _reply(resource, notice="Cronómetro descartado.")
 
 
 @bp.post("/inactividad")

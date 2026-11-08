@@ -1,15 +1,89 @@
-<div id="timer-bar" hx-post="{{ url_for('timer.beat') }}" hx-trigger="every 60s" hx-target="this" hx-swap="outerHTML" class="border-b border-line bg-surface-raised" data-running="{{ '1' if timer and timer.status == 'running' else '0' }}" data-idle-seconds="{{ idle_seconds }}" data-alerts='{{ alerts|tojson }}'>
-  <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-2 text-sm">
-    {% if timer %}
-    <span class="font-medium text-ink">{{ label }}</span>
-    <time class="tabular-nums text-ink" data-elapsed="{{ elapsed }}" data-running="{{ '1' if timer.status == 'running' else '0' }}" aria-label="Tiempo transcurrido">{{ '%02d:%02d:%02d'|format(elapsed // 3600, elapsed % 3600 // 60, elapsed % 60) }}</time>
-    <button type="button" hx-post="{{ url_for('timer.pause', timer_id=timer.id) }}" hx-target="#timer-bar" hx-swap="outerHTML" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Pausar</button>
-    <a href="{{ url_for('timer.index') }}" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Detener</a>
+{% set btn = 'rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600' %}
+{% set primary = 'rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600' %}
+{% set field = 'block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600' %}
+{% set panel = 'absolute left-0 top-full z-30 mt-2 w-[min(24rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface-raised p-3 shadow-lg' %}
+{% macro clock(seconds, running) -%}
+<time class="tabular-nums" data-elapsed="{{ seconds }}" data-running="{{ '1' if running else '0' }}">{{ '%02d:%02d:%02d'|format(seconds // 3600, seconds % 3600 // 60, seconds % 60) }}</time>
+{%- endmacro %}
+{% macro search(id, placeholder) -%}
+<input id="{{ id }}" type="search" name="q" autocomplete="off" placeholder="{{ placeholder }}" aria-label="{{ placeholder }}" hx-get="{{ url_for('timesheet.search') }}" hx-trigger="input changed delay:300ms, search" hx-target="#{{ id }}-r" hx-swap="innerHTML" class="{{ field }}">
+<ul id="{{ id }}-r" class="mt-2 max-h-60 overflow-y-auto"></ul>
+{%- endmacro %}
+<div id="timer-bar" hx-post="{{ url_for('timer.beat') }}" hx-trigger="every 60s" hx-target="this" hx-swap="outerHTML" class="border-b border-line bg-surface-raised" data-running="{{ '1' if is_running else '0' }}" data-idle-seconds="{{ idle_seconds }}" data-alerts='{{ alerts|tojson }}'>
+  <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-4 py-2 text-sm">
+    {% if not timer %}
+    {# ---- nothing open: start on a task #}
+    <form hx-post="{{ url_for('timer.start') }}" hx-target="#timer-bar" hx-swap="outerHTML" class="relative flex-1 sm:max-w-sm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {{ search('timer-q', '¿En qué trabajas? Código, título o actividad') }}
+    </form>
+    {% for fav in favorites %}
+    <form hx-post="{{ url_for('timer.start') }}" hx-target="#timer-bar" hx-swap="outerHTML">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" name="nueva" value="{{ encode_key(fav.key) }}" title="Iniciar" class="{{ btn }}">▶ {{ fav.label }}</button>
+    </form>
+    {% endfor %}
     {% else %}
-    <span class="text-ink-muted">Sin cronómetro activo</span>
-    <a href="{{ url_for('timer.index') }}" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Cronómetro</a>
+    {# ---- a timer is open #}
+    <span class="font-medium text-ink">{{ label }}</span>
+    <span class="text-lg font-semibold text-ink">{{ clock(total, is_running) }}</span>
+    {% if timer.chain_seconds %}<span class="text-xs text-ink-muted">en esta tarea {{ clock(elapsed, is_running) }}</span>{% endif %}
+    {% if not is_running %}<span class="text-xs text-ink-muted">En pausa</span>{% endif %}
+
+    {% if is_running %}
+    <button type="button" hx-post="{{ url_for('timer.pause', timer_id=timer.id) }}" hx-target="#timer-bar" hx-swap="outerHTML" class="{{ btn }}">Pausar</button>
+    {% else %}
+    <button type="button" hx-post="{{ url_for('timer.resume', timer_id=timer.id) }}" hx-target="#timer-bar" hx-swap="outerHTML" class="{{ btn }}">Reanudar</button>
     {% endif %}
-    <button type="button" hx-post="{{ url_for('timer.interrupt') }}" hx-target="#timer-bar" hx-swap="outerHTML" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Interrupción</button>
+
+    {% if is_running %}
+    <details class="relative" data-bar-panel>
+      <summary class="{{ btn }} cursor-pointer list-none [&::-webkit-details-marker]:hidden">{{ 'Clasificar' if unclassified else 'Cambiar tarea' }}</summary>
+      <form hx-post="{{ url_for('timer.switch') }}" hx-target="#timer-bar" hx-swap="outerHTML" class="{{ panel }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <p class="mb-2 text-xs text-ink-muted">{{ 'Elige a qué corresponde esta interrupción; el tiempo sigue corriendo.' if unclassified else 'Lo hecho hasta ahora se guarda en la tarea actual y el reloj sigue con la nueva.' }}</p>
+        {{ search('timer-switch', 'Nueva tarea') }}
+      </form>
+    </details>
+    {% endif %}
+
+    <details class="relative" data-bar-panel>
+      <summary class="{{ primary }} cursor-pointer list-none [&::-webkit-details-marker]:hidden">Terminar</summary>
+      <form hx-post="{{ url_for('timer.stop', timer_id=timer.id) }}" hx-target="#timer-bar" hx-swap="outerHTML" class="{{ panel }} space-y-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if unclassified %}
+        <div>
+          <p class="mb-1 text-sm font-medium text-ink">¿A qué corresponde?</p>
+          <p class="mb-2 text-xs text-ink-muted">Elige un resultado para guardar las horas.</p>
+          {{ search('timer-classify', 'Llamada, asesoría, ticket…') }}
+        </div>
+        {% endif %}
+        <div>
+          <label for="timer-tipo" class="mb-1 block text-xs font-medium text-ink">Tipo de tarea</label>
+          <select id="timer-tipo" name="tipo" class="{{ field }}">
+            <option value="">Sin tipo</option>
+            {% for type in task_types %}<option value="{{ type.id }}"{% if timer.task_type_id == type.id %} selected{% endif %}>{{ type.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="timer-desc" class="mb-1 block text-xs font-medium text-ink">Descripción</label>
+          <input id="timer-desc" name="descripcion" value="{{ timer.description or '' }}" maxlength="2000" class="{{ field }}">
+        </div>
+        <label class="flex items-center gap-2 text-sm text-ink"><input type="checkbox" name="ia" value="1"{% if timer.ai_assisted %} checked{% endif %}> Asistido por IA</label>
+        <div class="flex flex-wrap gap-2">
+          {% if not unclassified %}<button type="submit" class="{{ primary }}">Guardar horas</button>{% endif %}
+          <button type="button" hx-post="{{ url_for('timer.discard', timer_id=timer.id) }}" hx-target="#timer-bar" hx-swap="outerHTML" hx-confirm="¿Descartar este tiempo sin guardarlo?" class="{{ btn }}">Descartar</button>
+        </div>
+      </form>
+    </details>
+
+    {% if is_running and not timer.is_interruption %}
+    <button type="button" hx-post="{{ url_for('timer.interrupt') }}" hx-target="#timer-bar" hx-swap="outerHTML" title="Pausa esta tarea y cuenta aparte el tiempo de la interrupción" class="{{ btn }}">Interrupción</button>
+    {% endif %}
+    {% endif %}
+
     {% if paused %}<a href="{{ url_for('timer.index') }}" class="text-ink-muted underline underline-offset-2 hover:text-ink">{{ paused|length }} en pausa</a>{% endif %}
+    {% if error %}<p role="alert" class="basis-full text-sm text-red-700 dark:text-red-300">{{ error }}</p>{% endif %}
+    {% if notice %}<p role="status" class="basis-full text-sm text-ink-muted">{{ notice }}</p>{% endif %}
   </div>
 </div>

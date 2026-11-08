@@ -152,6 +152,9 @@ services:
       HOURPLAN_ENV: ${HOURPLAN_ENV:-production}
     command: ["flask", "voice-worker"]
     restart: unless-stopped
+    # The image's check calls /healthz, but the worker serves no HTTP.
+    healthcheck:
+      disable: true
     depends_on:
       db:
         condition: service_healthy
@@ -176,6 +179,9 @@ services:
       target: runtime
     user: root
     environment:
+      <<: *database-url
+      # Only the download runs here; development mode supplies a throwaway SECRET_KEY.
+      HOURPLAN_ENV: development
       VOICE_MODELS_DIR: /models
     volumes:
       - voice-models:/models
