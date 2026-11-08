@@ -43,7 +43,7 @@
       <form method="post" action="{{ url_for('timer.discard', timer_id=t.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Descartar</button></form>
     </div>
     <details class="mt-3"{% if t.is_interruption and not t.project_id and not t.activity_bucket_id %} open{% endif %}>
-      <summary class="cursor-pointer text-sm font-medium text-brand-700 dark:text-brand-300">Detener y guardar horas</summary>
+      <summary class="cursor-pointer text-sm font-medium text-brand-700 dark:text-brand-300">Terminar</summary>
       <form method="post" action="{{ url_for('timer.stop', timer_id=t.id) }}" class="mt-3 grid gap-3 sm:grid-cols-2">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% if not t.project_id and not t.activity_bucket_id %}

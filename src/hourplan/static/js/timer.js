@@ -59,6 +59,49 @@
   }
   document.body.addEventListener("htmx:afterSwap", function () { tick(); deliverAlerts(); });
 
+  // The minute heartbeat must not wipe a panel the user is filling in: keep the bar as it is
+  // and only deliver the alerts that came with the answer.
+  function busy(el) {
+    var focused = document.activeElement;
+    return !!el.querySelector("details[open]") ||
+      (el.contains(focused) && focused.matches("input, select, textarea"));
+  }
+  document.body.addEventListener("htmx:beforeSwap", function (event) {
+    var el = bar();
+    var path = event.detail.pathInfo && event.detail.pathInfo.requestPath;
+    if (!el || event.detail.target !== el || !path || path.indexOf("/cronometro/latido") === -1) { return; }
+    if (!busy(el)) { return; }
+    event.detail.shouldSwap = false;
+    var holder = document.createElement("div");
+    holder.innerHTML = event.detail.serverResponse;
+    var fresh = holder.firstElementChild;
+    if (fresh && fresh.dataset.alerts) {
+      el.dataset.alerts = fresh.dataset.alerts;
+      deliverAlerts();
+    }
+  });
+
+  // Close an open bar panel when clicking elsewhere or pressing Escape.
+  document.addEventListener("click", function (event) {
+    document.querySelectorAll("#timer-bar details[data-bar-panel][open]").forEach(function (d) {
+      if (!d.contains(event.target)) { d.open = false; }
+    });
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") { return; }
+    document.querySelectorAll("#timer-bar details[data-bar-panel][open]").forEach(function (d) { d.open = false; });
+  });
+  // Only one panel open at a time; focus the search box when a panel opens.
+  document.addEventListener("toggle", function (event) {
+    var d = event.target;
+    if (!(d instanceof HTMLDetailsElement) || !d.open || !d.matches("#timer-bar details[data-bar-panel]")) { return; }
+    document.querySelectorAll("#timer-bar details[data-bar-panel][open]").forEach(function (other) {
+      if (other !== d) { other.open = false; }
+    });
+    var input = d.querySelector("input[type=search], select, input");
+    if (input) { input.focus(); }
+  }, true);
+
   // ---- inactivity
   function threshold() {
     var el = bar();

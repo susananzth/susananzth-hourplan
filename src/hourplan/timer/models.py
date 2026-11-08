@@ -79,6 +79,9 @@ class TimerSession(IdMixin, TimestampMixin, Base):
         ForeignKey("timer_session.id", ondelete="SET NULL")
     )
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Seconds of the earlier tasks of an uninterrupted run ("Cambiar tarea"): the bar's clock
+    # keeps counting from there; the hours of each task are still saved separately.
+    chain_seconds: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     time_entry_id: Mapped[int | None] = mapped_column(ForeignKey("time_entry.id"))
 
 
