@@ -36,6 +36,12 @@ FIELD_LABELS: Mapping[str, str] = {
     "planned_end": "Fin previsto",
     "status": "Estado de la fase",
     "resource_id": "Persona",
+    "submitted_on": "Fecha de envío",
+    "resolved_on": "Fecha de resolución",
+    "outcome": "Resultado",
+    "observations": "Observaciones",
+    "rework_category_id": "Categoría de origen",
+    "rework_reason_id": "Motivo de origen",
     # Absences.
     "absence_type": "Tipo de ausencia",
     "start_on": "Desde",

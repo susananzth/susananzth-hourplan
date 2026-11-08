@@ -16,8 +16,14 @@ from hourplan.auth.roles import Role
 from hourplan.catalogs import services as catalogs
 from hourplan.catalogs.models import CatalogKind
 from hourplan.extensions import db
-from hourplan.projects import services
-from hourplan.projects.models import PhaseStatus, PhaseTemplate, ProjectPhase
+from hourplan.projects import cycles, services
+from hourplan.projects.models import (
+    CycleOutcome,
+    PhaseCycle,
+    PhaseStatus,
+    PhaseTemplate,
+    ProjectPhase,
+)
 from hourplan.shared.labels import label, validation_message
 
 bp = Blueprint("projects", __name__, url_prefix="/proyectos", template_folder="templates")
@@ -29,6 +35,11 @@ PHASE_STATUS_LABELS = {
     PhaseStatus.IN_PROGRESS: "En curso",
     PhaseStatus.DONE: "Terminada",
     PhaseStatus.SKIPPED: "Omitida",
+}
+OUTCOME_LABELS = {
+    CycleOutcome.PENDING: "Pendiente",
+    CycleOutcome.RETURNED: "Observada",
+    CycleOutcome.APPROVED: "Aprobada",
 }
 
 
@@ -168,6 +179,18 @@ def detail(project_id: int) -> str:
         warning=services.duration_warning(db.session, project, _today()),
         span=services.planned_span(project),
         phase_statuses=PHASE_STATUS_LABELS,
+        gated=[p for p in project.phases if cycles.is_gated(p)],
+        round_name=cycles.round_name,
+        returned=cycles.returned_count(db.session, project.id),
+        outcomes=OUTCOME_LABELS,
+        categories=catalogs.list_items(db.session, CatalogKind.REWORK_CATEGORY),
+        reasons=catalogs.list_items(db.session, CatalogKind.REWORK_REASON),
+        items_all={
+            i.id: i.name
+            for kind in (CatalogKind.REWORK_CATEGORY, CatalogKind.REWORK_REASON)
+            for i in catalogs.list_items(db.session, kind)
+        },
+        today=_today(),
         can_edit=current_user.has_role(*EDITORS),
     )
 
@@ -215,3 +238,49 @@ def update_phase(project_id: int, phase_id: int) -> Response:
     else:
         flash("Fase actualizada.", "info")
     return redirect(url_for("projects.detail", project_id=project_id))
+
+
+@bp.post("/<int:project_id>/fases/<int:phase_id>/rondas")
+@roles_required(*EDITORS)
+def submit_round(project_id: int, phase_id: int) -> Response:
+    phase = db.session.get(ProjectPhase, phase_id)
+    if phase is None or phase.project_id != project_id:
+        abort(404)
+    try:
+        day = _day(request.form.get("fecha"), "submitted_on")
+        if day is None:
+            raise ValueError(f"{label('submitted_on')}: indica la fecha.")
+        cycles.submit(db.session, phase_id, day, actor_id=int(current_user.id))
+    except ValueError as err:
+        db.session.rollback()
+        flash(_error(err), "error")
+    else:
+        flash("Ronda enviada.", "info")
+    return redirect(url_for("projects.detail", project_id=project_id, _anchor="rondas"))
+
+
+@bp.post("/<int:project_id>/rondas/<int:cycle_id>")
+@roles_required(*EDITORS)
+def decide_round(project_id: int, cycle_id: int) -> Response:
+    cycle = db.session.get(PhaseCycle, cycle_id)
+    if cycle is None or cycle.phase.project_id != project_id:
+        abort(404)
+    form = request.form
+    try:
+        day = _day(form.get("fecha"), "resolved_on")
+        if day is None:
+            raise ValueError(f"{label('resolved_on')}: indica la fecha.")
+        data = cycles.Decision(
+            outcome=form.get("resultado", ""),  # type: ignore[arg-type]
+            resolved_on=day,
+            observations=form.get("observaciones"),
+            rework_category_id=_int(form.get("categoria")),
+            rework_reason_id=_int(form.get("motivo")),
+        )
+        cycles.decide(db.session, cycle_id, data, decider_id=int(current_user.id))
+    except (ValueError, ValidationError) as err:
+        db.session.rollback()
+        flash(_error(err), "error")
+    else:
+        flash("Ronda resuelta.", "info")
+    return redirect(url_for("projects.detail", project_id=project_id, _anchor="rondas"))

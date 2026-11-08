@@ -219,6 +219,21 @@ def update_phase(
     phase = session.get(ProjectPhase, phase_id)
     if phase is None:
         raise ProjectError("No se encontró esa fase.")
+    if data.status in (PhaseStatus.IN_PROGRESS, PhaseStatus.DONE) and phase.status != data.status:
+        blocker = next(
+            (
+                p
+                for p in phase.project.phases
+                if p.position < phase.position
+                and p.blocks_next
+                and p.status not in (PhaseStatus.DONE.value, PhaseStatus.SKIPPED.value)
+            ),
+            None,
+        )
+        if blocker is not None:
+            raise ProjectError(
+                f"La fase «{blocker.name}» bloquea las siguientes: termínala u omítela primero."
+            )
     values: Mapping[str, Any] = {
         **data.model_dump(),
         "status": data.status.value,

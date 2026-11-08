@@ -62,4 +62,55 @@
     </tbody>
   </table>
 </div>
+{% if gated %}
+<section id="rondas" aria-labelledby="rondas-titulo" class="mt-10">
+  <h2 id="rondas-titulo" class="mb-1 text-lg font-semibold text-ink">Rondas de verificación y aprobación</h2>
+  <p class="mb-4 text-sm text-ink-muted">Cada ronda observada devuelve el trabajo a construcción y cuenta como rework. Rondas observadas en el proyecto: {{ returned }}.</p>
+  {% for ph in gated %}
+  {% set pending = ph.cycles | selectattr('outcome', 'equalto', 'pending') | first %}
+  {% set approved = ph.cycles | selectattr('outcome', 'equalto', 'approved') | first %}
+  <div class="mb-4 rounded-lg border border-line bg-surface-raised p-4">
+    <h3 class="mb-2 font-medium text-ink">{{ ph.name }}</h3>
+    {% if ph.cycles %}
+    <ul class="mb-3 space-y-1 text-sm text-ink">
+      {% for c in ph.cycles %}
+      <li><strong>{{ round_name(ph, c) }}</strong> · enviada {{ c.submitted_on.strftime('%d/%m/%Y') }}
+        {% if c.resolved_on %}· resuelta {{ c.resolved_on.strftime('%d/%m/%Y') }}{% endif %} · {{ outcomes[c.outcome] }}{% if c.is_estimated %} (estimada){% endif %}
+        {% if c.rework_category_id %}· {{ items_all.get(c.rework_category_id) }}{% if c.rework_reason_id %} / {{ items_all.get(c.rework_reason_id) }}{% endif %}{% endif %}
+        {% if c.observations %}<br><span class="text-ink-muted">{{ c.observations }}</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="mb-3 text-sm text-ink-muted">Sin rondas todavía.</p>{% endif %}
+    {% if can_edit %}
+    {% if pending %}
+    <form method="post" action="{{ url_for('projects.decide_round', project_id=project.id, cycle_id=pending.id) }}" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div><label for="fecha-r{{ pending.id }}" class="mb-1 block text-xs text-ink-muted">Fecha de resolución</label>
+        <input id="fecha-r{{ pending.id }}" name="fecha" type="date" required value="{{ today.isoformat() }}" class="block w-full {{ input }}"></div>
+      <div><label for="cat-{{ pending.id }}" class="mb-1 block text-xs text-ink-muted">Categoría de origen (si se observa)</label>
+        <select id="cat-{{ pending.id }}" name="categoria" class="block w-full {{ input }}"><option value="">—</option>
+          {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
+      <div><label for="mot-{{ pending.id }}" class="mb-1 block text-xs text-ink-muted">Motivo (opcional)</label>
+        <select id="mot-{{ pending.id }}" name="motivo" class="block w-full {{ input }}"><option value="">—</option>
+          {% for r in reasons %}<option value="{{ r.id }}">{{ items_all.get(r.parent_id, '') }} / {{ r.name }}</option>{% endfor %}</select></div>
+      <div class="sm:col-span-2 lg:col-span-4"><label for="obs-{{ pending.id }}" class="mb-1 block text-xs text-ink-muted">Observaciones (obligatorias si se observa)</label>
+        <textarea id="obs-{{ pending.id }}" name="observaciones" rows="2" maxlength="5000" class="block w-full {{ input }}"></textarea></div>
+      <div class="flex gap-3 sm:col-span-2 lg:col-span-4">
+        <button type="submit" name="resultado" value="approved" class="{{ primary }}">Aprobar {{ round_name(ph, pending) }}</button>
+        <button type="submit" name="resultado" value="returned" class="{{ quiet }}">Observar (devolver a construcción)</button>
+      </div>
+    </form>
+    {% elif not approved %}
+    <form method="post" action="{{ url_for('projects.submit_round', project_id=project.id, phase_id=ph.id) }}" class="flex flex-wrap items-end gap-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div><label for="fecha-e{{ ph.id }}" class="mb-1 block text-xs text-ink-muted">Fecha de envío</label>
+        <input id="fecha-e{{ ph.id }}" name="fecha" type="date" required value="{{ today.isoformat() }}" class="{{ input }}"></div>
+      <button type="submit" class="{{ primary }}">Enviar a {{ ph.name | lower }}</button>
+    </form>
+    {% endif %}
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
 {% endblock %}
