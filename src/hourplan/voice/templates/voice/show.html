@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Borrador del dictado · HourPlan{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold text-ink">Borrador del dictado</h1>
+<p class="mt-1 text-sm text-ink-muted"><a href="{{ url_for('voice.index') }}" class="text-brand-700 dark:text-brand-300">Volver a dictados</a></p>
+<div class="mt-6">{{ status|safe }}</div>
+{% endblock %}

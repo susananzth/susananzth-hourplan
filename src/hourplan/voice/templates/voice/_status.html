@@ -1,0 +1,86 @@
+{% set field = 'block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600' %}
+{% if in_progress %}
+<div id="dictado" hx-get="{{ url_for('voice.status', dictation_id=item.id) }}" hx-trigger="every 2s" hx-swap="outerHTML" role="status" class="rounded-lg border border-line bg-surface-raised p-4 text-sm text-ink">
+  {{ 'Esperando turno…' if item.status == 'queued' else 'Transcribiendo tu dictado…' }}
+  {% if item.error %}<span class="text-ink-muted"> Último intento: {{ item.error }} Se reintenta solo.</span>{% endif %}
+</div>
+{% elif item.status == 'failed' %}
+<div id="dictado" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+  No se pudo transcribir el dictado{% if item.error %}: {{ item.error }}{% endif %} Puedes grabarlo de nuevo.
+  <a href="{{ url_for('voice.index') }}" class="font-medium underline">Grabar otra vez</a>
+</div>
+{% elif item.status == 'ready' %}
+<div id="dictado">
+  <details class="rounded-lg border border-line bg-surface-raised p-4 text-sm">
+    <summary class="cursor-pointer font-medium text-ink">Lo que se entendió</summary>
+    <p class="mt-2 text-ink-muted">{{ item.transcript or '(sin texto)' }}</p>
+  </details>
+  <form method="post" action="{{ url_for('voice.confirm', dictation_id=item.id) }}" class="mt-4 space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="n" value="{{ lines|length }}">
+    {% for line in lines %}
+    {% set i = loop.index0 %}
+    <fieldset class="rounded-lg border border-line bg-surface-raised p-4">
+      <legend class="px-1 text-sm font-medium text-ink">Línea {{ loop.index }}</legend>
+      {% for note in line.notes %}<p class="mb-2 text-sm text-amber-700 dark:text-amber-300">{{ note }}</p>{% endfor %}
+      <label class="mb-3 flex items-center gap-2 text-sm text-ink"><input type="checkbox" name="l{{ i }}-usar" value="1"{% if line.use %} checked{% endif %}> Guardar esta línea</label>
+      <div class="grid gap-3 sm:grid-cols-4">
+        <div>
+          <label for="l{{ i }}-fecha" class="mb-1 block text-sm font-medium text-ink">Fecha</label>
+          <input id="l{{ i }}-fecha" type="date" name="l{{ i }}-fecha" value="{{ line.work_date or '' }}" class="{{ field }}">
+        </div>
+        <div>
+          <label for="l{{ i }}-horas" class="mb-1 block text-sm font-medium text-ink">Horas</label>
+          <input id="l{{ i }}-horas" name="l{{ i }}-horas" inputmode="decimal" value="{{ line.hours or '' }}" class="{{ field }}">
+        </div>
+        <div class="sm:col-span-2">
+          <label for="l{{ i }}-destino" class="mb-1 block text-sm font-medium text-ink">Proyecto o actividad</label>
+          <select id="l{{ i }}-destino" name="l{{ i }}-destino" class="{{ field }}">
+            <option value="">Elige uno</option>
+            <optgroup label="Proyectos">
+              {% for p in cands.projects %}<option value="p:{{ p.id }}"{% if line.project_id == p.id %} selected{% endif %}>{{ p.code }} · {{ p.label }}</option>{% endfor %}
+            </optgroup>
+            <optgroup label="Actividades">
+              {% for b in cands.buckets %}<option value="b:{{ b.id }}"{% if line.activity_bucket_id == b.id %} selected{% endif %}>{{ b.label }}</option>{% endfor %}
+            </optgroup>
+          </select>
+        </div>
+        <div>
+          <label for="l{{ i }}-tipo" class="mb-1 block text-sm font-medium text-ink">Tipo de tarea</label>
+          <select id="l{{ i }}-tipo" name="l{{ i }}-tipo" class="{{ field }}">
+            <option value="">Sin tipo</option>
+            {% for t in cands.task_types %}<option value="{{ t.id }}"{% if line.task_type_id == t.id %} selected{% endif %}>{{ t.label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="l{{ i }}-app" class="mb-1 block text-sm font-medium text-ink">Aplicación</label>
+          <select id="l{{ i }}-app" name="l{{ i }}-app" class="{{ field }}">
+            <option value="">Ninguna</option>
+            {% for a in cands.applications %}<option value="{{ a.id }}"{% if line.application_id == a.id %} selected{% endif %}>{{ a.label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="sm:col-span-2">
+          <label for="l{{ i }}-desc" class="mb-1 block text-sm font-medium text-ink">Descripción</label>
+          <input id="l{{ i }}-desc" name="l{{ i }}-desc" maxlength="2000" value="{{ line.description or '' }}" class="{{ field }}">
+        </div>
+      </div>
+      {% if line.project_phase_id %}
+      <input type="hidden" name="l{{ i }}-fase" value="{{ line.project_phase_id }}">
+      <p class="mt-2 text-xs text-ink-muted">Fase: {{ phase_names.get(line.project_phase_id, '') }}</p>
+      {% endif %}
+      <label class="mt-3 flex items-center gap-2 text-sm text-ink"><input type="checkbox" name="l{{ i }}-ia" value="1"{% if line.ai_assisted %} checked{% endif %}> Asistido por IA</label>
+      {% if line.origins %}<p class="mt-2 text-xs text-ink-muted">Detectado con: {{ 'reglas y modelo local' if 'llm' in line.origins.values() else 'reglas' }}.</p>{% endif %}
+    </fieldset>
+    {% endfor %}
+    <div class="flex flex-wrap gap-2">
+      <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Guardar horas</button>
+      <button type="submit" formaction="{{ url_for('voice.discard', dictation_id=item.id) }}" formnovalidate class="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Descartar dictado</button>
+    </div>
+  </form>
+</div>
+{% else %}
+<div id="dictado" class="rounded-lg border border-line bg-surface-raised p-4 text-sm text-ink">
+  Este dictado ya está {{ 'guardado' if item.status == 'confirmed' else 'descartado' }}.
+  <a href="{{ url_for('voice.index') }}" class="font-medium text-brand-700 dark:text-brand-300">Volver a dictados</a>
+</div>
+{% endif %}

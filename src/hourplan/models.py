@@ -20,6 +20,7 @@ from hourplan.reports.models import ComplianceSnapshot, DeviationNote
 from hourplan.resources.models import Resource
 from hourplan.timer.models import AlertFired, AlertSetting, TimerPreference, TimerSession
 from hourplan.timesheet.models import Absence, TimeBankLedger, TimeEntry
+from hourplan.voice.models import VoiceDictation
 
 metadata = Base.metadata
 
@@ -53,6 +54,7 @@ __all__ = [
     "TimerSession",
     "User",
     "UserRole",
+    "VoiceDictation",
     "WorkItemLink",
     "metadata",
 ]

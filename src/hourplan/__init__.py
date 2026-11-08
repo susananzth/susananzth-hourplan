@@ -30,6 +30,8 @@ def create_app(config_name: str | None = None, overrides: dict[str, Any] | None 
     from hourplan.timer import routes as timer_routes
     from hourplan.timesheet import absence_routes, bank_routes
     from hourplan.timesheet import routes as timesheet_routes
+    from hourplan.voice import cli as voice_cli
+    from hourplan.voice import routes as voice_routes
 
     extensions.db.init_app(app)
     extensions.csrf.init_app(app)
@@ -49,6 +51,8 @@ def create_app(config_name: str | None = None, overrides: dict[str, Any] | None 
     app.register_blueprint(absence_routes.bp)
     app.register_blueprint(bank_routes.bp)
     app.register_blueprint(timer_routes.bp)
+    app.register_blueprint(voice_routes.bp)
+    app.register_blueprint(voice_cli.bp)
     app.register_blueprint(project_routes.bp)
     app.register_blueprint(planning_routes.bp)
     app.register_blueprint(report_routes.bp)

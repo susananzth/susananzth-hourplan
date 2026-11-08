@@ -31,10 +31,15 @@ HSTS = "max-age=31536000; includeSubDomains"
 
 def init_security_headers(app: Flask) -> None:
     send_hsts = bool(app.config.get("SECURITY_HSTS", True))
+    headers = dict(STATIC_HEADERS)
+    if app.config.get("VOICE_STT_URL"):
+        headers["Permissions-Policy"] = headers["Permissions-Policy"].replace(
+            "microphone=()", "microphone=(self)"
+        )
 
     @app.after_request
     def _set_headers(response: Response) -> Response:
-        for name, value in STATIC_HEADERS.items():
+        for name, value in headers.items():
             response.headers.setdefault(name, value)
         if send_hsts:
             response.headers.setdefault("Strict-Transport-Security", HSTS)
