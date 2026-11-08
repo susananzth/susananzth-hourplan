@@ -172,6 +172,16 @@ class DraftLine:
         }
 
 
+_NOISE_TAGS = re.compile(
+    r"\[[^\]]*\]|\((?:m[uú]sica|risas|aplausos|silencio|inaudible)\)", re.IGNORECASE
+)
+
+
+def clean_transcript(text: str) -> str:
+    """Drop the tags Whisper writes for non-speech, such as ``[MÚSICA]`` or ``[BLANK_AUDIO]``."""
+    return re.sub(r"\s+", " ", _NOISE_TAGS.sub(" ", text)).strip()
+
+
 def fold(text: str) -> str:
     """Lowercase without accents, keeping the length so spans map back to the original."""
     out = []

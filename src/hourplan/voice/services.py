@@ -190,7 +190,7 @@ def process(
 
     started = clock()
     try:
-        transcript = engines.stt.transcribe(wav, prompt=prompt)
+        transcript = extract.clean_transcript(engines.stt.transcribe(wav, prompt=prompt))
     except EngineError as err:
         _fail(session, dictation_id, str(err))
         return

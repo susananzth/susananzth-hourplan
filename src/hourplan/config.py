@@ -102,6 +102,9 @@ class TestingConfig(DevelopmentConfig):
         if test_url := os.environ.get("TEST_DATABASE_URL"):
             env["DATABASE_URL"] = test_url
         env["RATELIMIT_STORAGE_URI"] = "memory://"
+        # Tests switch voice on explicitly and never reach real engines.
+        env.pop("VOICE_STT_URL", None)
+        env.pop("VOICE_LLM_URL", None)
         return env
 
 

@@ -152,6 +152,9 @@ services:
       HOURPLAN_ENV: ${HOURPLAN_ENV:-production}
     command: ["flask", "voice-worker"]
     restart: unless-stopped
+    # The image's check calls /healthz, but the worker serves no HTTP.
+    healthcheck:
+      disable: true
     depends_on:
       db:
         condition: service_healthy
