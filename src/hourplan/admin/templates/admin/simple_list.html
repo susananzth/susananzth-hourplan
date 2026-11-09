@@ -7,7 +7,7 @@
   <a href="{{ url_for('admin.' ~ prefix ~ '_new') }}" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Nuevo</a>
 </div>
 <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
-  <table class="w-full text-left text-sm">
+  <table aria-label="Listado" class="w-full text-left text-sm">
     <thead class="border-b border-line text-ink-muted"><tr>
       {% for h in headers %}<th scope="col" class="px-4 py-2 font-medium">{{ h }}</th>{% endfor %}
       <th scope="col" class="px-4 py-2 font-medium">Estado</th>

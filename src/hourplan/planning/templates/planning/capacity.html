@@ -19,7 +19,7 @@
 </div>
 <p class="mb-4 text-sm text-ink-muted">Cada celda muestra las horas libres y, debajo, asignadas de disponibles. Disponibles = días hábiles × jornada − ausencias aprobadas. ⚠ marca sobreasignación.</p>
 <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
-  <table class="w-full text-left text-sm">
+  <table aria-label="Capacidad" class="w-full text-left text-sm">
     <thead class="border-b border-line text-ink-muted"><tr>
       <th scope="col" class="sticky left-0 bg-surface-raised px-4 py-2 font-medium">Persona</th>
       {% for a, b in periods %}<th scope="col" class="px-3 py-2 text-right font-medium whitespace-nowrap">{{ a.strftime('%d/%m') }}</th>{% endfor %}
