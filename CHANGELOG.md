@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 ## [Sin publicar]
 
 ### Añadido
+- Endurecimiento: `make backup` y `make restore` (guía en `docs/respaldos.md`), guía del overlay (`docs/overlay.md`), acceso opcional con la cuenta de la organización por OpenID Connect (`OIDC_*`; solo entran personas ya dadas de alta), accesibilidad (tablas con nombre y encabezados, navegación, foco visible, menos movimiento) e interfaz en español e inglés con selector de idioma (menú, inicio, acceso y errores traducidos; el resto se traduce de a poco y mientras tanto se muestra en español).
 - Pruebas de navegador (`make e2e`) con Playwright en Docker sobre una base descartable con los datos demo; de paso regeneran las capturas de `docs/capturas`. `make css` reconstruye el CSS compilado.
 - `flask link-resource CORREO` vincula una cuenta con su recurso (reutiliza uno libre con ese nombre); sin ese vínculo no se pueden registrar horas.
 - `make demo` ahora incluye una ronda observada, una ronda pendiente y un proyecto cerrado con su nota de desvío.
