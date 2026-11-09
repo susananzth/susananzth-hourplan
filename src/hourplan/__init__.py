@@ -27,6 +27,7 @@ def create_app(config_name: str | None = None, overrides: dict[str, Any] | None 
     from hourplan.reports import routes as report_routes
     from hourplan.resources import cli as resources_cli
     from hourplan.setup import cli as setup_cli
+    from hourplan.shared import i18n
     from hourplan.shared.errors import init_error_handlers
     from hourplan.shared.security import init_security_headers
     from hourplan.timer import routes as timer_routes
@@ -41,6 +42,8 @@ def create_app(config_name: str | None = None, overrides: dict[str, Any] | None 
     extensions.login_manager.init_app(app)
     extensions.login_manager.login_view = "auth.login"
     extensions.login_manager.login_message = "Inicia sesión para continuar."
+    extensions.login_manager.localize_callback = i18n._
+    i18n.init_app(app)
     extensions.login_manager.session_protection = "strong"
 
     app.register_blueprint(health_routes.bp)

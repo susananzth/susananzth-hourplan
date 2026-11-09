@@ -20,6 +20,7 @@ from hourplan.auth.forms import LoginForm
 from hourplan.auth.models import User
 from hourplan.extensions import db, limiter, login_manager
 from hourplan.shared.auth import login_required
+from hourplan.shared.i18n import _
 
 bp = Blueprint("auth", __name__, template_folder="templates")
 
@@ -59,7 +60,7 @@ def login() -> Response | str | tuple[str, int]:
         if user is not None:
             login_user(user, remember=bool(form.remember.data))
             return redirect(_safe_next(request.args.get("next")))
-        flash("Correo o contraseña incorrectos.", "error")
+        flash(_("Correo o contraseña incorrectos."), "error")
         return render_template(
             "auth/login.html", form=form, sso=oidc.is_enabled(current_app.config)
         ), 401
@@ -83,7 +84,7 @@ def sso_start() -> Response:
         url = oidc.authorization_url(current_app.config, flow, _sso_redirect_uri())
     except oidc.OidcError:
         current_app.logger.exception("SSO discovery failed")
-        flash("No se pudo iniciar el acceso con la cuenta de la organización.", "error")
+        flash(_("No se pudo iniciar el acceso con la cuenta de la organización."), "error")
         return redirect(url_for("auth.login"))
     session["oidc"] = flow
     return redirect(url)
@@ -99,18 +100,18 @@ def sso_callback() -> Response:
     state = request.args.get("state", "")
     failure = redirect(url_for("auth.login"))
     if not flow or not code or not secrets.compare_digest(state, flow["state"]):
-        flash("No se pudo validar el acceso con la cuenta de la organización.", "error")
+        flash(_("No se pudo validar el acceso con la cuenta de la organización."), "error")
         return failure
     try:
         email = oidc.email_from_code(current_app.config, flow, code, _sso_redirect_uri())
     except oidc.OidcError:
         current_app.logger.warning("SSO rejected", exc_info=True)
-        flash("No se pudo validar el acceso con la cuenta de la organización.", "error")
+        flash(_("No se pudo validar el acceso con la cuenta de la organización."), "error")
         return failure
     user = services.authenticate_sso(db.session, email=email)
     if user is None:
         flash(
-            "Tu cuenta de la organización no tiene acceso a HourPlan. Pide que te den de alta.",
+            _("Tu cuenta de la organización no tiene acceso a HourPlan. Pide que te den de alta."),
             "error",
         )
         return failure
@@ -122,5 +123,5 @@ def sso_callback() -> Response:
 @login_required
 def logout() -> Response:
     logout_user()
-    flash("Sesión cerrada.", "info")
+    flash(_("Sesión cerrada."), "info")
     return redirect(url_for("auth.login"))

@@ -55,6 +55,7 @@ select = ["E", "W", "F", "I", "B", "UP", "S", "C4", "SIM", "RUF", "PT", "N", "DT
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106", "DTZ001"]
 "migrations/**" = ["N999", "E501"]
+"src/hourplan/shared/locales.py" = ["E501"]
 
 # ---------------------------------------------------------------- mypy
 [tool.mypy]

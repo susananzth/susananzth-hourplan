@@ -1,27 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Iniciar sesión · HourPlan{% endblock %}
+{% block title %}{{ _("Iniciar sesión") }} · HourPlan{% endblock %}
 {% block header %}{% endblock %}
 {% block content %}
 <div class="mx-auto mt-12 max-w-sm">
-  <h1 class="mb-6 text-2xl font-semibold text-ink">Iniciar sesión</h1>
+  <h1 class="mb-6 text-2xl font-semibold text-ink">{{ _("Iniciar sesión") }}</h1>
   <form method="post" novalidate class="space-y-5 rounded-lg border border-line bg-surface-raised p-6 shadow-sm">
     {{ form.hidden_tag() }}
     {% for field in [form.email, form.password] %}
     <div>
-      {{ field.label(class="mb-1 block text-sm font-medium text-ink") }}
+      <label for="{{ field.id }}" class="mb-1 block text-sm font-medium text-ink">{{ _(field.label.text) }}</label>
       {{ field(class="block w-full rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600", **({"aria-invalid": "true", "aria-describedby": field.id ~ "-error"} if field.errors else {})) }}
       {% for error in field.errors %}
-      <p id="{{ field.id }}-error" class="mt-1 text-sm text-red-700 dark:text-red-300">{{ error }}</p>
+      <p id="{{ field.id }}-error" class="mt-1 text-sm text-red-700 dark:text-red-300">{{ _(error) }}</p>
       {% endfor %}
     </div>
     {% endfor %}
     <label class="flex items-center gap-2 text-sm text-ink-muted">
-      {{ form.remember(class="h-4 w-4 rounded border-line-strong text-brand-600") }} {{ form.remember.label.text }}
+      {{ form.remember(class="h-4 w-4 rounded border-line-strong text-brand-600") }} {{ _(form.remember.label.text) }}
     </label>
-    <button type="submit" class="w-full rounded-md bg-brand-600 px-4 py-2.5 font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Entrar</button>
+    <button type="submit" class="w-full rounded-md bg-brand-600 px-4 py-2.5 font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">{{ _("Entrar") }}</button>
   </form>
   {% if sso %}
-  <a href="{{ url_for('auth.sso_start') }}" class="mt-4 block w-full rounded-md border border-line-strong bg-surface-raised px-4 py-2.5 text-center font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Entrar con la cuenta de la organización</a>
+  <a href="{{ url_for('auth.sso_start') }}" class="mt-4 block w-full rounded-md border border-line-strong bg-surface-raised px-4 py-2.5 text-center font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">{{ _("Entrar con la cuenta de la organización") }}</a>
   {% endif %}
 </div>
 {% endblock %}
