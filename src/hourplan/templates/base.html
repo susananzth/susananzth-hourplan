@@ -7,6 +7,7 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}HourPlan{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <script src="{{ url_for('static', filename='js/nav.js') }}"></script>
   <script type="application/json" id="hp-i18n">{{ js_catalog | tojson }}</script>
   <script src="{{ url_for('static', filename='js/i18n.js') }}" defer></script>
   <script src="{{ url_for('static', filename='vendor/htmx.min.js') }}" defer></script>
@@ -17,34 +18,45 @@
 <body class="h-full bg-surface text-ink antialiased" hx-headers='{"X-CSRFToken": "{{ csrf_token() }}"}'>
   <a href="#contenido" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:text-brand-700">{{ _("Saltar al contenido") }}</a>
 
+  {% set has_nav = nav_groups | length > 0 %}
+  {% if has_nav %}
+  {% set any_active = nav_groups | selectattr('active') | list %}
+  <aside id="hp-sidebar" class="hp-sidebar flex flex-col border-r border-line bg-surface-raised">
+    <div class="flex h-14 shrink-0 items-center border-b border-line px-4">
+      <a href="{{ url_for('main.index') }}" class="flex items-center gap-2 text-lg font-semibold text-brand-700 dark:text-brand-300">{{ icon('hourglass', 'size-5') }}HourPlan</a>
+    </div>
+    <nav aria-label="{{ _('Principal') }}" class="flex-1 overflow-y-auto px-3 py-4">
+      <a href="{{ url_for('main.index') }}" class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium {{ 'bg-brand-50 text-brand-700 dark:bg-brand-700/20 dark:text-brand-300' if request.path == '/' else 'text-ink-muted hover:bg-surface hover:text-ink' }}"{% if request.path == '/' %} aria-current="page"{% endif %}>{{ icon('house') }}<span>{{ _("Inicio") }}</span></a>
+      {% for group in nav_groups %}
+      <details class="hp-group mt-3"{% if group.active or (not any_active and loop.first) %} open{% endif %}>
+        <summary class="flex cursor-pointer list-none items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wide text-ink-muted hover:bg-surface hover:text-ink">
+          {{ icon(group.icon) }}<span class="flex-1">{{ group.label }}</span>{{ icon('chevron-right', 'hp-chevron size-4 transition-transform') }}
+        </summary>
+        <ul class="mt-1 space-y-0.5">
+          {% for link in group.links %}
+          <li><a href="{{ link.href }}" class="flex items-center gap-3 rounded-md py-2 pl-5 pr-3 text-sm font-medium {{ 'bg-brand-50 text-brand-700 dark:bg-brand-700/20 dark:text-brand-300' if link.active else 'text-ink-muted hover:bg-surface hover:text-ink' }}"{% if link.active %} aria-current="page"{% endif %}>{{ icon(link.icon) }}<span>{{ link.label }}</span></a></li>
+          {% endfor %}
+        </ul>
+      </details>
+      {% endfor %}
+    </nav>
+  </aside>
+  <div id="hp-backdrop" class="hp-backdrop" aria-hidden="true"></div>
+  {% endif %}
+
+  <div class="{{ 'hp-content ' if has_nav }}flex min-h-full flex-col">
   {% block header %}
-  <header class="border-b border-line bg-surface-raised">
-    <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-      <a href="{{ url_for('main.index') }}" class="text-lg font-semibold text-brand-700 dark:text-brand-300">HourPlan</a>
-      {% if current_user.is_authenticated %}
-      <nav aria-label="{{ _('Principal') }}" class="contents">
-      <a href="{{ url_for('timesheet.week') }}" class="ml-4 rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/horas') %} aria-current="page"{% endif %}>{{ _("Mis horas") }}</a>
-      {% if current_user.has_role('admin', 'pm', 'lead', 'developer') %}<a href="{{ url_for('timer.index') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/cronometro') %} aria-current="page"{% endif %}>{{ _("Cronómetro") }}</a>{% endif %}
-      {% if config.VOICE_STT_URL and current_user.has_role('admin', 'pm', 'lead', 'developer') %}<a href="{{ url_for('voice.index') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/voz') %} aria-current="page"{% endif %}>{{ _("Voz") }}</a>{% endif %}
-      {% if current_user.has_role('admin', 'pm', 'lead', 'developer') %}<a href="{{ url_for('ailog.index') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/bitacora') %} aria-current="page"{% endif %}>{{ _("Bitácora") }}</a>{% endif %}
-      <a href="{{ url_for('absences.index') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/ausencias') %} aria-current="page"{% endif %}>{{ _("Ausencias") }}</a>
-      <a href="{{ url_for('bank.index') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/banco') %} aria-current="page"{% endif %}>{{ _("Banco de horas") }}</a>
-      <a href="{{ url_for('projects.index') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/proyectos') %} aria-current="page"{% endif %}>{{ _("Proyectos") }}</a>
-      <a href="{{ url_for('planning.gantt_projects') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/planificacion') %} aria-current="page"{% endif %}>{{ _("Planificación") }}</a>
-      {% if current_user.has_role('admin', 'pm', 'lead') %}<a href="{{ url_for('reports.index') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/informes') %} aria-current="page"{% endif %}>{{ _("Informes") }}</a>
-      {% elif current_user.has_role('developer') %}<a href="{{ url_for('reports.mine') }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path.startswith('/informes') %} aria-current="page"{% endif %}>{{ _("Mi informe") }}</a>{% endif %}
-      </nav>
-      {% if nav_links %}
-      <nav aria-label="{{ _('Administración') }}" class="hidden flex-1 flex-wrap gap-1 px-6 md:flex">
-        {% for href, label in nav_links %}
-        <a href="{{ href }}" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600"{% if request.path == href %} aria-current="page"{% endif %}>{{ label }}</a>
-        {% endfor %}
-      </nav>
+  <header class="sticky top-0 z-20 border-b border-line bg-surface-raised">
+    <div class="flex h-14 items-center gap-3 px-4 sm:px-6">
+      {% if has_nav %}
+      <button id="hp-nav-toggle" type="button" aria-controls="hp-sidebar" aria-expanded="false" title="{{ _('Menú') }}" class="-ml-2 rounded-md p-2 text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600">{{ icon('menu', 'size-5') }}<span class="sr-only">{{ _("Mostrar u ocultar el menú") }}</span></button>
       {% endif %}
-      <form method="post" action="{{ url_for('auth.logout') }}" class="flex items-center gap-3">
-        <span class="text-sm text-ink-muted">{{ current_user.display_name }}</span>
+      <a href="{{ url_for('main.index') }}" class="text-lg font-semibold text-brand-700 dark:text-brand-300{{ ' lg:hidden' if has_nav }}">HourPlan</a>
+      {% if current_user.is_authenticated %}
+      <form method="post" action="{{ url_for('auth.logout') }}" class="ml-auto flex items-center gap-2">
+        <span class="hidden items-center gap-2 text-sm text-ink-muted sm:flex">{{ icon('circle-user-round') }}{{ current_user.display_name }}</span>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600">{{ _("Cerrar sesión") }}</button>
+        <button type="submit" class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600">{{ icon('log-out') }}<span>{{ _("Cerrar sesión") }}</span></button>
       </form>
       {% endif %}
     </div>
@@ -55,7 +67,7 @@
   {% include "timer/_idle_dialog.html" %}
   {% endif %}
 
-  <main id="contenido" class="mx-auto max-w-7xl px-4 py-8">
+  <main id="contenido" class="w-full min-w-0 flex-1 px-4 py-8 sm:px-6">
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="mb-6 space-y-2" role="status" aria-live="polite">
@@ -67,15 +79,16 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
-  <footer class="mx-auto max-w-7xl px-4 pb-6">
+  <footer class="px-4 pb-6 sm:px-6">
     <form method="post" action="{{ url_for('main.set_language') }}" class="flex items-center gap-2 text-sm text-ink-muted">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">
-      <span>{{ _("Idioma") }}:</span>
+      {{ icon('languages') }}<span>{{ _("Idioma") }}:</span>
       {% for code, name in languages.items() %}
       <button type="submit" name="lang" value="{{ code }}" lang="{{ code }}"{% if code == locale %} aria-current="true"{% endif %} class="rounded px-2 py-1 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600{% if code == locale %} font-semibold text-ink{% endif %}">{{ name }}</button>
       {% endfor %}
     </form>
   </footer>
+  </div>
 </body>
 </html>

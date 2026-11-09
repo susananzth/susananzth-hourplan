@@ -55,27 +55,6 @@ KIND_FLAGS = {
 PARENT_KIND = {child: parent for parent, child in CHILD_KINDS.items()}
 
 
-@bp.app_context_processor
-def navigation() -> dict[str, Any]:
-    """Admin links visible to the current user (the views enforce the roles again)."""
-    links: list[tuple[str, str]] = []
-    if current_user.is_authenticated:
-        if current_user.has_role(*CATALOG_ROLES):
-            links += [
-                (url_for("admin.catalog_list"), _("Catálogos")),
-                (url_for("admin.portfolio_list"), _("Carteras")),
-                (url_for("admin.application_list"), _("Aplicaciones")),
-                (url_for("admin.repository_list"), _("Repositorios")),
-            ]
-        if current_user.has_role(Role.ADMIN):
-            links += [
-                (url_for("admin.user_list"), _("Usuarios")),
-                (url_for("admin.policy_list"), _("Políticas")),
-                (url_for("admin.holiday_list"), _("Feriados")),
-            ]
-    return {"nav_links": links}
-
-
 def _today() -> date:
     return datetime.now().astimezone().date()
 

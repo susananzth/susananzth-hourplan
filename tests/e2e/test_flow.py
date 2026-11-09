@@ -1,6 +1,6 @@
 from playwright.sync_api import Page, expect
 
-from conftest import shot
+from conftest import SHOTS, shot
 
 
 def test_home_links_to_the_main_areas(logged: Page) -> None:
@@ -85,3 +85,45 @@ def test_tables_page_search_and_speak_english(logged: Page) -> None:
     logged.goto("/informes/proyectos")
     expect(logged.get_by_text("Plan vs actual").first).to_be_visible()
     logged.get_by_role("button", name="Español").click()
+
+
+def test_side_menu_widens_the_content_on_desktop(logged: Page) -> None:
+    logged.goto("/admin/usuarios")
+    sidebar = logged.locator("#hp-sidebar")
+    toggle = logged.locator("#hp-nav-toggle")
+    main = logged.locator("#contenido")
+    expect(sidebar).to_be_visible()
+    expect(toggle).to_have_attribute("aria-expanded", "true")
+    expect(logged.locator('#hp-sidebar a[aria-current="page"]')).to_have_text("Usuarios")
+    width = main.bounding_box()["width"]
+    shot(logged, "09-menu-lateral")
+    toggle.click()
+    expect(sidebar).to_be_hidden()
+    expect(toggle).to_have_attribute("aria-expanded", "false")
+    logged.wait_for_timeout(300)  # padding transition
+    assert main.bounding_box()["width"] > width
+    logged.reload()  # the choice is remembered
+    expect(sidebar).to_be_hidden()
+    logged.locator("#hp-nav-toggle").click()
+    expect(sidebar).to_be_visible()
+
+
+def test_side_menu_overlays_the_content_on_mobile(logged: Page) -> None:
+    logged.set_viewport_size({"width": 390, "height": 800})
+    logged.goto("/proyectos")
+    sidebar = logged.locator("#hp-sidebar")
+    backdrop = logged.locator("#hp-backdrop")
+    main = logged.locator("#contenido")
+    expect(sidebar).to_be_hidden()
+    width = main.bounding_box()["width"]
+    logged.locator("#hp-nav-toggle").click()
+    expect(sidebar).to_be_visible()
+    expect(backdrop).to_have_css("opacity", "1")
+    assert main.bounding_box()["width"] == width  # the menu covers, it does not push
+    logged.wait_for_timeout(300)
+    logged.screenshot(path=str(SHOTS / "10-menu-movil.png"))
+    backdrop.click(position={"x": 370, "y": 400})
+    expect(sidebar).to_be_hidden()
+    logged.locator("#hp-nav-toggle").click()
+    logged.keyboard.press("Escape")
+    expect(sidebar).to_be_hidden()

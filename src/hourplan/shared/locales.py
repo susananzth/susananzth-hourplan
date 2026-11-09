@@ -17,6 +17,9 @@ EN: dict[str, str] = {
     "Idioma": "Language",
     "Principal": "Main",
     "Administración": "Administration",
+    "Mi trabajo": "My work",
+    "Menú": "Menu",
+    "Mostrar u ocultar el menú": "Show or hide the menu",
     # Home
     "Inicio": "Home",
     "Hola, ": "Hello, ",
