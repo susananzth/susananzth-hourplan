@@ -1,0 +1,10 @@
+{% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
+<div class="mb-2 flex flex-wrap items-center justify-between gap-3">
+  <h1 class="text-2xl font-semibold text-ink">{{ project.code }} · {{ project.title }}</h1>
+  <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="{{ quiet }}">Volver al proyecto</a>
+</div>
+<nav aria-label="Trabajo ágil" class="mb-6 flex flex-wrap gap-1 border-b border-line pb-2">
+  {% if profile.board %}<a href="{{ url_for('agile.board', project_id=project.id) }}" class="{{ quiet }}"{% if request.endpoint == 'agile.board' %} aria-current="page"{% endif %}>Tablero</a>{% endif %}
+  {% if profile.sprints %}<a href="{{ url_for('agile.sprints', project_id=project.id) }}" class="{{ quiet }}"{% if request.endpoint == 'agile.sprints' %} aria-current="page"{% endif %}>Sprints</a>{% endif %}
+  {% if profile.epics %}<a href="{{ url_for('agile.epics', project_id=project.id) }}" class="{{ quiet }}"{% if request.endpoint == 'agile.epics' %} aria-current="page"{% endif %}>Épicas</a>{% endif %}
+</nav>

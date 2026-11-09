@@ -17,6 +17,7 @@ from hourplan.catalogs import services as catalogs
 from hourplan.catalogs.models import CatalogKind
 from hourplan.extensions import db
 from hourplan.projects import cycles, services
+from hourplan.projects.methodology import PROFILES, has_agile, profile_of
 from hourplan.projects.models import (
     CycleOutcome,
     PhaseCycle,
@@ -94,6 +95,7 @@ def _project_data() -> services.ProjectData:
         base_effort_hours=_hours(form.get("esfuerzo"), "base_effort_hours"),
         contingency_hours=_hours(form.get("contingencia"), "contingency_hours"),
         notes=form.get("notas"),
+        methodology=form.get("metodologia") or None,  # type: ignore[arg-type]
     )
 
 
@@ -112,6 +114,7 @@ def _choices() -> dict[str, Any]:
         "users": list(
             session.scalars(select(User).where(User.is_active).order_by(User.display_name))
         ),
+        "profiles": PROFILES,
         "parents": services.list_projects(session, include_closed=True),
     }
 
@@ -192,6 +195,8 @@ def detail(project_id: int) -> str:
         },
         today=_today(),
         can_edit=current_user.has_role(*EDITORS),
+        profile=profile_of(project.methodology),
+        agile=has_agile(project.methodology),
     )
 
 

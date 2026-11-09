@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Sprints · {{ project.code }} · HourPlan{% endblock %}
+{% block content %}
+{% set input = "rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
+{% set primary = "rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600" %}
+{% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
+{% include "agile/_nav.html" %}
+<h2 class="mb-3 text-lg font-semibold text-ink">Sprints</h2>
+<div class="mb-8 overflow-x-auto rounded-lg border border-line bg-surface-raised">
+  <table aria-label="Sprints" class="w-full text-left text-sm">
+    <thead class="border-b border-line text-ink-muted"><tr>
+      <th scope="col" class="px-4 py-2 font-medium">Sprint</th>
+      <th scope="col" class="px-4 py-2 font-medium">Fechas</th>
+      <th scope="col" class="px-4 py-2 font-medium">Estado</th>
+      <th scope="col" class="px-4 py-2 font-medium">Historias</th>
+      <th scope="col" class="px-4 py-2 font-medium">Plan (h)</th>
+      <th scope="col" class="px-4 py-2 font-medium">Real (h)</th>
+      {% if can_edit %}<th scope="col" class="px-4 py-2"><span class="sr-only">Acciones</span></th>{% endif %}
+    </tr></thead>
+    <tbody>
+      {% for s in sprints %}{% set t = totals.get(s.id) %}
+      <tr class="border-b border-line last:border-0">
+        <th scope="row" class="px-4 py-2 font-medium text-ink">{{ s.name }}{% if s.goal %}<span class="block text-xs font-normal text-ink-muted">{{ s.goal }}</span>{% endif %}</th>
+        <td class="px-4 py-2 text-ink">{{ s.start_date.strftime('%d/%m/%Y') }} – {{ s.end_date.strftime('%d/%m/%Y') }}</td>
+        <td class="px-4 py-2 text-ink">{{ status_labels[s.status] }}</td>
+        <td class="px-4 py-2 text-ink">{{ t.done if t else 0 }} de {{ t.stories if t else 0 }} terminadas</td>
+        <td class="px-4 py-2 text-ink">{{ t.planned if t else 0 }}</td>
+        <td class="px-4 py-2 text-ink">{{ t.actual if t else 0 }}</td>
+        {% if can_edit %}<td class="px-4 py-2 text-right">
+          {% if s.status == 'planned' %}<form method="post" action="{{ url_for('agile.start_sprint', project_id=project.id, sprint_id=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="{{ quiet }}">Iniciar</button></form>
+          {% elif s.status == 'active' %}<form method="post" action="{{ url_for('agile.close_sprint', project_id=project.id, sprint_id=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="{{ quiet }}">Cerrar</button></form>{% endif %}
+        </td>{% endif %}
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="px-4 py-4 text-ink-muted">Aún no hay sprints.</td></tr>
+      {% endfor %}
+      {% if totals.get(none) %}<tr><th scope="row" class="px-4 py-2 font-medium text-ink-muted">Pendientes (sin sprint)</th><td></td><td></td><td class="px-4 py-2 text-ink-muted">{{ totals[none].done }} de {{ totals[none].stories }} terminadas</td><td class="px-4 py-2 text-ink-muted">{{ totals[none].planned }}</td><td class="px-4 py-2 text-ink-muted">{{ totals[none].actual }}</td>{% if can_edit %}<td></td>{% endif %}</tr>{% endif %}
+    </tbody>
+  </table>
+</div>
+{% if can_edit %}
+<h2 class="mb-3 text-lg font-semibold text-ink">Nuevo sprint</h2>
+<form method="post" action="{{ url_for('agile.create_sprint', project_id=project.id) }}" class="grid gap-4 rounded-lg border border-line bg-surface-raised p-4 sm:grid-cols-2 lg:grid-cols-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div><label for="nombre" class="mb-1 block text-sm font-medium text-ink">Nombre</label><input id="nombre" name="nombre" required maxlength="120" class="block w-full {{ input }}"></div>
+  <div><label for="inicio" class="mb-1 block text-sm font-medium text-ink">Inicio</label><input id="inicio" type="date" name="inicio" required class="block w-full {{ input }}"></div>
+  <div><label for="fin" class="mb-1 block text-sm font-medium text-ink">Fin</label><input id="fin" type="date" name="fin" required class="block w-full {{ input }}"></div>
+  <div class="sm:col-span-2 lg:col-span-4"><label for="objetivo" class="mb-1 block text-sm font-medium text-ink">Objetivo</label><input id="objetivo" name="objetivo" maxlength="2000" class="block w-full {{ input }}"></div>
+  <div class="sm:col-span-2 lg:col-span-4"><button type="submit" class="{{ primary }}">Crear sprint</button></div>
+</form>
+{% endif %}
+{% endblock %}

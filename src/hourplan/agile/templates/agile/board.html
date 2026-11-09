@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Tablero · {{ project.code }} · HourPlan{% endblock %}
+{% block content %}
+{% set input = "rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
+{% set primary = "rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600" %}
+{% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
+{% include "agile/_nav.html" %}
+<h2 class="mb-3 text-lg font-semibold text-ink">Tablero</h2>
+<div class="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+  {% for status_id, name, cards in columns if cards or status_id is not none %}
+  <section aria-labelledby="col-{{ status_id or 0 }}" class="rounded-lg border border-line bg-surface-raised p-3">
+    <h3 id="col-{{ status_id or 0 }}" class="mb-3 text-sm font-semibold text-ink">{{ name }} <span class="font-normal text-ink-muted">({{ cards | length }})</span></h3>
+    <ul class="space-y-2">
+      {% for s in cards %}
+      <li class="rounded-md border border-line bg-surface p-2 text-sm">
+        <p class="font-medium text-ink">{{ s.code }} · {{ s.title }}</p>
+        <p class="text-xs text-ink-muted">{% if s.epic_id %}Épica: {{ epics[s.epic_id].name }} · {% endif %}{% if s.sprint_id %}{{ sprints[s.sprint_id].name }} · {% endif %}{{ s.base_effort_hours if s.base_effort_hours is not none else '—' }} h</p>
+        {% if can_move %}
+        <form method="post" action="{{ url_for('agile.move_story', project_id=project.id, story_id=s.id) }}" class="mt-2 flex gap-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <select name="estado" aria-label="Estado de {{ s.code }}" class="{{ input }} py-1 text-xs">
+            <option value=""{% if s.status_id is none %} selected{% endif %}>Sin estado</option>
+            {% for sid, sname, _c in columns if sid is not none %}<option value="{{ sid }}"{% if s.status_id == sid %} selected{% endif %}>{{ sname }}</option>{% endfor %}
+          </select>
+          <button type="submit" class="{{ quiet }}">Mover</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+</div>
+{% if not stories %}<p class="mb-8 text-sm text-ink-muted">Aún no hay historias. Crea la primera abajo.</p>{% endif %}
+
+{% if can_edit %}
+<h2 class="mb-3 text-lg font-semibold text-ink">Nueva historia</h2>
+<form method="post" action="{{ url_for('agile.create_story', project_id=project.id) }}" class="mb-8 grid gap-4 rounded-lg border border-line bg-surface-raised p-4 sm:grid-cols-2 lg:grid-cols-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div><label for="codigo" class="mb-1 block text-sm font-medium text-ink">Código</label><input id="codigo" name="codigo" required maxlength="40" class="block w-full {{ input }}"></div>
+  <div class="lg:col-span-2"><label for="titulo" class="mb-1 block text-sm font-medium text-ink">Título</label><input id="titulo" name="titulo" required maxlength="200" class="block w-full {{ input }}"></div>
+  {% if profile.epics %}<div><label for="epica" class="mb-1 block text-sm font-medium text-ink">Épica</label>
+    <select id="epica" name="epica" class="block w-full {{ input }}"><option value="">Ninguna</option>{% for e in epics.values() %}<option value="{{ e.id }}">{{ e.name }}</option>{% endfor %}</select></div>{% endif %}
+  {% if profile.sprints %}<div><label for="sprint" class="mb-1 block text-sm font-medium text-ink">Sprint</label>
+    <select id="sprint" name="sprint" class="block w-full {{ input }}"><option value="">Pendientes (sin sprint)</option>{% for sp in sprints.values() if sp.status != 'closed' %}<option value="{{ sp.id }}">{{ sp.name }}</option>{% endfor %}</select></div>{% endif %}
+  <div><label for="esfuerzo" class="mb-1 block text-sm font-medium text-ink">Esfuerzo (h)</label><input id="esfuerzo" name="esfuerzo" inputmode="decimal" class="block w-full {{ input }}"></div>
+  <div class="sm:col-span-2 lg:col-span-3"><button type="submit" class="{{ primary }}">Crear historia</button></div>
+</form>
+
+{% if (profile.epics or profile.sprints) and stories %}
+<h2 class="mb-3 text-lg font-semibold text-ink">Asignar historias</h2>
+<div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
+  <table aria-label="Asignar historias" class="w-full text-left text-sm">
+    <thead class="border-b border-line text-ink-muted"><tr>
+      <th scope="col" class="px-4 py-2 font-medium">Historia</th>
+      {% if profile.epics %}<th scope="col" class="px-4 py-2 font-medium">Épica</th>{% endif %}
+      {% if profile.sprints %}<th scope="col" class="px-4 py-2 font-medium">Sprint</th>{% endif %}
+      <th scope="col" class="px-4 py-2"><span class="sr-only">Guardar</span></th>
+    </tr></thead>
+    <tbody>
+      {% for s in stories %}{% set f = 'asig-' ~ s.id %}
+      <tr class="border-b border-line last:border-0">
+        <th scope="row" class="px-4 py-2 font-medium text-ink">{{ s.code }} · {{ s.title }}<form id="{{ f }}" method="post" action="{{ url_for('agile.assign_story', project_id=project.id, story_id=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form></th>
+        {% if profile.epics %}<td class="px-4 py-2"><select form="{{ f }}" name="epica" aria-label="Épica de {{ s.code }}" class="{{ input }}"><option value="">Ninguna</option>{% for e in epics.values() %}<option value="{{ e.id }}"{% if s.epic_id == e.id %} selected{% endif %}>{{ e.name }}</option>{% endfor %}</select></td>{% endif %}
+        {% if profile.sprints %}<td class="px-4 py-2"><select form="{{ f }}" name="sprint" aria-label="Sprint de {{ s.code }}" class="{{ input }}"><option value="">Pendientes (sin sprint)</option>{% for sp in sprints.values() if sp.status != 'closed' or s.sprint_id == sp.id %}<option value="{{ sp.id }}"{% if s.sprint_id == sp.id %} selected{% endif %}>{{ sp.name }}</option>{% endfor %}</select></td>{% endif %}
+        <td class="px-4 py-2 text-right"><button form="{{ f }}" type="submit" class="{{ quiet }}">Guardar</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
