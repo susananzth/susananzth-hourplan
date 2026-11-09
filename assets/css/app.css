@@ -45,6 +45,85 @@
   }
 }
 
+/*
+ * Side menu. Narrow screens: hidden, it slides over the content with a backdrop
+ * (html.hp-nav-open). Wide screens: shown beside the content; html[data-sidebar=closed]
+ * hides it and the content takes the whole width.
+ */
+@layer components {
+  .hp-sidebar {
+    position: fixed;
+    inset-block: 0;
+    left: 0;
+    z-index: 40;
+    width: 16rem;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 0.2s ease,
+      visibility 0s linear 0.2s;
+  }
+  .hp-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgb(2 6 23 / 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .hp-nav-open {
+    overflow: hidden;
+  }
+  .hp-nav-open .hp-sidebar {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.2s ease;
+  }
+  .hp-nav-open .hp-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .hp-content {
+    transition: padding-left 0.2s ease;
+  }
+
+  @media (width >= 64rem) {
+    .hp-nav-open {
+      overflow: visible;
+    }
+    .hp-sidebar {
+      transform: none;
+      visibility: visible;
+      transition: transform 0.2s ease;
+    }
+    .hp-backdrop {
+      display: none;
+    }
+    .hp-content {
+      padding-left: 16rem;
+    }
+    [data-sidebar="closed"] .hp-sidebar {
+      transform: translateX(-100%);
+      visibility: hidden;
+      transition:
+        transform 0.2s ease,
+        visibility 0s linear 0.2s;
+    }
+    [data-sidebar="closed"] .hp-content {
+      padding-left: 0;
+    }
+  }
+
+  /* Group arrow turns when the group opens. */
+  .hp-group[open] > summary .hp-chevron {
+    transform: rotate(90deg);
+  }
+  .hp-group > summary::-webkit-details-marker {
+    display: none;
+  }
+}
+
 @layer base {
   /* Foco visible en todo elemento interactivo, también donde no se definió uno propio. */
   :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
