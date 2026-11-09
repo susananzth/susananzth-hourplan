@@ -24,6 +24,11 @@
   {{ pick('prioridad', 'prioridad', 'Prioridad', priorities, cur('prioridad', 'priority_id') | int) }}
   {{ pick('estado', 'estado', 'Estado', statuses, cur('estado', 'status_id') | int) }}
   {% if not project %}{{ pick('plantilla', 'plantilla', 'Plantilla de fases', templates, cur('plantilla', 'phase_template_id') | int, 'La predeterminada') }}{% endif %}
+  <div><label for="metodologia" class="mb-1 block text-sm font-medium text-ink">Metodología</label>
+    <select id="metodologia" name="metodologia" class="block w-full {{ input }}">
+      {% set chosen = form.get('metodologia') if form else (project.methodology if project else 'waterfall') %}
+      {% for key, p in profiles.items() %}<option value="{{ key }}"{% if chosen == key %} selected{% endif %}>{{ p.label }}</option>{% endfor %}
+    </select></div>
   {{ pick('padre', 'padre', 'Proyecto padre (subproyecto)', parents, cur('padre', 'parent_id') | int, 'Ninguno') }}
   {{ pick('gerente', 'gerente', 'Gerente de proyecto', users, cur('gerente', 'manager_id') | int) }}
   {{ pick('lider', 'lider', 'Líder técnico', users, cur('lider', 'lead_id') | int) }}

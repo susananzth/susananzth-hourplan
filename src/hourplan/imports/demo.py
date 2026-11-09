@@ -14,13 +14,14 @@ from openpyxl import Workbook
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+from hourplan.agile import services as agile
 from hourplan.catalogs.models import CatalogItem
 from hourplan.db import transaction
 from hourplan.imports import plan, services
 from hourplan.imports.mapping import Mapping
 from hourplan.imports.models import ImportBatch
 from hourplan.projects import cycles
-from hourplan.projects.models import CycleOutcome, Project, ProjectPhase
+from hourplan.projects.models import CycleOutcome, Methodology, Project, ProjectPhase
 from hourplan.reports import compare, notes
 from hourplan.timesheet.models import TimeEntry
 
@@ -91,6 +92,7 @@ def lifecycle(session: Session, today: date) -> None:
     round, was approved and then closed with a deviation note.
     """
     _link_phases(session)
+    _agile(session, today)
     category = session.scalar(
         select(CatalogItem).where(
             CatalogItem.kind == "rework_category", CatalogItem.code == "EXECUTION"
@@ -130,6 +132,44 @@ def lifecycle(session: Session, today: date) -> None:
                 "Las horas superaron lo planificado por una ronda de pruebas observada.",
                 actor_id=None,
             )
+
+
+def _agile(session: Session, today: date) -> None:
+    """PJ-00002 runs as Scrum: an epic, an active sprint and three stories on the board."""
+    project = session.scalar(select(Project).where(Project.code == "PJ-00002"))
+    if project is None:
+        return
+    with transaction(session):
+        project.methodology = Methodology.SCRUM.value
+    epic = agile.create_epic(session, project.id, agile.EpicData(name="Emisión"), actor_id=None)
+    sprint = agile.create_sprint(
+        session,
+        project.id,
+        agile.SprintData(
+            name="Sprint 1",
+            goal="Emitir el primer comprobante",
+            start_date=today - timedelta(days=7),
+            end_date=today + timedelta(days=7),
+        ),
+        actor_id=None,
+    )
+    agile.start_sprint(session, project.id, sprint.id, actor_id=None)
+    for number, (title, hours) in enumerate(
+        (("Formulario de emisión", "6"), ("Validación de datos", "4"), ("Vista previa", "3")),
+        start=901,
+    ):
+        agile.create_story(
+            session,
+            project.id,
+            agile.StoryData(
+                code=f"TK-{number:05d}",
+                title=title,
+                epic_id=epic.id,
+                sprint_id=sprint.id,
+                base_effort_hours=Decimal(hours),
+            ),
+            actor_id=None,
+        )
 
 
 def _monday(day: date) -> date:

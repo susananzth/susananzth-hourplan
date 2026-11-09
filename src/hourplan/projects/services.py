@@ -15,6 +15,7 @@ from hourplan.db import transaction
 from hourplan.policies import services as policies
 from hourplan.policies.models import WorkPolicy
 from hourplan.projects.models import (
+    Methodology,
     PhaseStatus,
     PhaseTemplate,
     Project,
@@ -66,6 +67,8 @@ class ProjectData(BaseModel):
     base_effort_hours: Decimal | None = Field(default=None, ge=0, le=100000)
     contingency_hours: Decimal | None = Field(default=None, ge=0, le=100000)
     notes: str | None = Field(default=None, max_length=5000)
+    # None keeps the current profile on edit and means waterfall on create.
+    methodology: Methodology | None = None
 
     @field_validator("base_effort_hours", "contingency_hours")
     @classmethod
@@ -153,6 +156,7 @@ def create_project(session: Session, data: ProjectData, *, actor_id: int | None)
     _check_references(session, data, None)
     template = _template(session, data.phase_template_id)
     values = data.model_dump()
+    values["methodology"] = (data.methodology or Methodology.WATERFALL).value
     values["phase_template_id"] = template.id if template else None
     with transaction(session):
         project = Project(kind=ProjectKind.PROJECT.value, created_by_id=actor_id, **values)
@@ -196,6 +200,10 @@ def update_project(
     project = get_project(session, project_id)
     _check_references(session, data, project.id)
     values = data.model_dump(exclude={"phase_template_id"})
+    if data.methodology is None:
+        del values["methodology"]
+    else:
+        values["methodology"] = data.methodology.value
     with transaction(session):
         before = {key: getattr(project, key) for key in values}
         for key, value in values.items():

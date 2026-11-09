@@ -20,6 +20,12 @@ FIELD_LABELS: Mapping[str, str] = {
     "description": "Descripción",
     "ai_assisted": "Asistido por IA",
     # Projects and phases.
+    "name": "Nombre",
+    "goal": "Objetivo",
+    "start_date": "Inicio",
+    "end_date": "Fin",
+    "epic_id": "Épica",
+    "sprint_id": "Sprint",
     "code": "Código",
     "title": "Título",
     "portfolio_id": "Cartera",

@@ -3,11 +3,13 @@ from decimal import Decimal
 from enum import StrEnum
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Column,
     Date,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     SmallInteger,
     String,
@@ -27,6 +29,27 @@ from hourplan.db import Base, IdMixin, LongHours, TimestampMixin, enum_check, no
 class ProjectKind(StrEnum):
     PROJECT = "project"
     TICKET = "ticket"
+
+
+class Methodology(StrEnum):
+    """How a project is run. It changes which screens are offered, never the stored hours."""
+
+    WATERFALL = "waterfall"
+    SCRUM = "scrum"
+    KANBAN = "kanban"
+    HYBRID = "hybrid"
+    STORIES = "stories"
+
+
+class EpicStatus(StrEnum):
+    OPEN = "open"
+    DONE = "done"
+
+
+class SprintStatus(StrEnum):
+    PLANNED = "planned"
+    ACTIVE = "active"
+    CLOSED = "closed"
 
 
 class PhaseType(StrEnum):
@@ -134,6 +157,24 @@ class Project(IdMixin, TimestampMixin, Base):
         not_blank("code"),
         not_blank("title"),
         CheckConstraint("parent_id <> id", name="parent_not_self"),
+        enum_check("methodology", Methodology),
+        # A ticket's epic and sprint belong to the project the ticket hangs from.
+        CheckConstraint(
+            "(epic_id IS NULL AND sprint_id IS NULL) OR parent_id IS NOT NULL",
+            name="agile_needs_parent",
+        ),
+        ForeignKeyConstraint(
+            ["epic_id", "parent_id"],
+            ["epic.id", "epic.project_id"],
+            name="fk_project_epic",
+            use_alter=True,
+        ),
+        ForeignKeyConstraint(
+            ["sprint_id", "parent_id"],
+            ["sprint.id", "sprint.project_id"],
+            name="fk_project_sprint",
+            use_alter=True,
+        ),
         CheckConstraint(
             "(base_effort_hours IS NULL OR base_effort_hours >= 0)"
             " AND (contingency_hours IS NULL OR contingency_hours >= 0)",
@@ -142,6 +183,11 @@ class Project(IdMixin, TimestampMixin, Base):
     )
 
     kind: Mapped[str] = mapped_column(String(10), default=ProjectKind.PROJECT)
+    methodology: Mapped[str] = mapped_column(
+        String(10), default=Methodology.WATERFALL, server_default=text("'waterfall'")
+    )
+    epic_id: Mapped[int | None] = mapped_column(BigInteger)
+    sprint_id: Mapped[int | None] = mapped_column(BigInteger)
     code: Mapped[str] = mapped_column(String(40))
     title: Mapped[str] = mapped_column(String(200))
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("project.id"))
@@ -177,6 +223,57 @@ class Project(IdMixin, TimestampMixin, Base):
 
 Index("uq_project_kind_code", Project.kind, func.upper(Project.code), unique=True)
 Index(None, Project.parent_id)
+
+
+class Epic(IdMixin, TimestampMixin, Base):
+    """A large piece of work inside a project that groups its stories (tickets)."""
+
+    __tablename__ = "epic"
+    __table_args__ = (
+        UniqueConstraint("id", "project_id"),
+        enum_check("status", EpicStatus),
+        not_blank("name"),
+    )
+
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(
+        String(10), default=EpicStatus.OPEN, server_default=text("'open'")
+    )
+
+
+Index("uq_epic_project_name", Epic.project_id, func.lower(Epic.name), unique=True)
+
+
+class Sprint(IdMixin, TimestampMixin, Base):
+    """A time box of a project. Only one is active at a time; closed sprints stay as history."""
+
+    __tablename__ = "sprint"
+    __table_args__ = (
+        UniqueConstraint("id", "project_id"),
+        enum_check("status", SprintStatus),
+        not_blank("name"),
+        CheckConstraint("end_date >= start_date", name="dates"),
+    )
+
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(120))
+    goal: Mapped[str | None] = mapped_column(Text)
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(
+        String(10), default=SprintStatus.PLANNED, server_default=text("'planned'")
+    )
+
+
+Index("uq_sprint_project_name", Sprint.project_id, func.lower(Sprint.name), unique=True)
+Index(
+    "uq_sprint_one_active",
+    Sprint.project_id,
+    unique=True,
+    postgresql_where=text("status = 'active'"),
+)
 
 
 class ProjectPhase(PhaseStepMixin, IdMixin, Base):
