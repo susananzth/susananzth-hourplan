@@ -159,6 +159,16 @@ def authenticate(session: Session, *, email: str, password: str) -> User | None:
     return user
 
 
+def authenticate_sso(session: Session, *, email: str) -> User | None:
+    """Return the active local user for an email the identity provider verified."""
+    user = find_by_email(session, email)
+    if user is None or not user.is_active:
+        return None
+    with transaction(session):
+        user.last_login_at = datetime.now(UTC)
+    return user
+
+
 def _verify(password_hash: str, password: str) -> bool:
     try:
         return _hasher.verify(password_hash, password)

@@ -5,7 +5,7 @@ export UID := $(shell id -u)
 export GID := $(shell id -g)
 
 .DEFAULT_GOAL := help
-.PHONY: help up down logs migrate seed user demo dev test test-fast lint format lock audit build e2e css voice-models voice-up
+.PHONY: help up down logs migrate seed user demo dev test test-fast lint format lock audit build e2e css voice-models voice-up backup restore
 
 help: ## Show available commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -70,6 +70,18 @@ e2e: css ## Browser tests (Playwright in Docker) on a throwaway database; also r
 lock: ## Update uv.lock and package-lock.json
 	docker run --rm -u $(UID):$(GID) -e HOME=/tmp -v "$(CURDIR)":/app -w /app $(UV_IMAGE) uv lock
 	npm install --package-lock-only --no-audit --no-fund
+
+backup: ## Dump the database to backups/ (BACKUP_KEEP=14 newest files are kept)
+	@mkdir -p backups
+	@f=backups/hourplan-$$(date +%Y%m%d-%H%M%S).dump; \
+	$(COMPOSE) exec -T db sh -c 'pg_dump -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -Fc' > $$f && echo "Backup: $$f"; \
+	ls -1t backups/*.dump | tail -n +$$(( $${BACKUP_KEEP:-14} + 1 )) | xargs -r rm --
+
+restore: ## Restore a dump into the database (make restore F=backups/file.dump) - replaces data
+	@test -f "$(F)" || { echo "Usage: make restore F=backups/file.dump"; exit 1; }
+	$(COMPOSE) stop web
+	$(COMPOSE) exec -T db sh -c 'pg_restore -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" --clean --if-exists --no-owner' < $(F)
+	$(COMPOSE) up -d --wait web
 
 build: ## Build the production image
 	docker build --target runtime -t hourplan:local .

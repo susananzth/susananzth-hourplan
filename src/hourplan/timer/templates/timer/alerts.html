@@ -4,8 +4,8 @@
 <h1 class="text-2xl font-semibold text-ink">Alertas de horas</h1>
 <p class="mt-1 text-sm text-ink-muted">Recibes un aviso del navegador cuando un proyecto consume cada porcentaje de sus horas (esfuerzo base más contingencia). Escribe los porcentajes separados por comas; vacío = sin avisos.</p>
 <div class="mt-6 overflow-x-auto rounded-lg border border-line bg-surface-raised">
-  <table class="w-full text-sm">
-    <thead><tr class="border-b border-line text-left text-ink-muted"><th class="px-3 py-2 font-medium">Proyecto</th><th class="px-3 py-2 font-medium">Horas</th><th class="px-3 py-2 font-medium">Plantilla</th><th class="px-3 py-2 font-medium">Mis umbrales</th></tr></thead>
+  <table aria-label="Alertas" class="w-full text-sm">
+    <thead><tr class="border-b border-line text-left text-ink-muted"><th scope="col" class="px-3 py-2 font-medium">Proyecto</th><th scope="col" class="px-3 py-2 font-medium">Horas</th><th scope="col" class="px-3 py-2 font-medium">Plantilla</th><th scope="col" class="px-3 py-2 font-medium">Mis umbrales</th></tr></thead>
     <tbody>
     {% for row in rows %}
     {% set p = row.project %}

@@ -38,3 +38,6 @@ src/hourplan/static/vendor/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Respaldos de la base de datos
+backups/
