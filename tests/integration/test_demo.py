@@ -41,7 +41,11 @@ def test_demo_has_returned_rounds_and_a_closed_project(session: Session, tmp_pat
     demo.load_demo(session, tmp_path, Mapping(), TODAY)
 
     outcomes = list(session.scalars(select(PhaseCycle.outcome).order_by(PhaseCycle.id)))
-    closed = list(session.scalars(select(Project.code).where(Project.closed_on.is_not(None))))
+    closed = list(
+        session.scalars(
+            select(Project.code).where(Project.kind == "project", Project.closed_on.is_not(None))
+        )
+    )
     assert outcomes.count("returned") == 2
     assert "pending" in outcomes
     assert "approved" in outcomes

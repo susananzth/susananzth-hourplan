@@ -1,52 +1,92 @@
 {% extends "base.html" %}
-{% block title %}Sprints · {{ project.code }} · HourPlan{% endblock %}
+{% block title %}{{ _("Sprints") }} · {{ project.code }} · HourPlan{% endblock %}
 {% block content %}
 {% set input = "rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
 {% set primary = "rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600" %}
 {% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
 {% include "agile/_nav.html" %}
-<h2 class="mb-3 text-lg font-semibold text-ink">Sprints</h2>
+<h2 class="mb-3 text-lg font-semibold text-ink">{{ _("Sprints") }}</h2>
 <div class="mb-8 overflow-x-auto rounded-lg border border-line bg-surface-raised">
-  <table aria-label="Sprints" class="w-full text-left text-sm">
+  <table aria-label="{{ _('Sprints') }}" class="w-full text-left text-sm">
     <thead class="border-b border-line text-ink-muted"><tr>
-      <th scope="col" class="px-4 py-2 font-medium">Sprint</th>
-      <th scope="col" class="px-4 py-2 font-medium">Fechas</th>
-      <th scope="col" class="px-4 py-2 font-medium">Estado</th>
-      <th scope="col" class="px-4 py-2 font-medium">Historias</th>
-      <th scope="col" class="px-4 py-2 font-medium">Plan (h)</th>
-      <th scope="col" class="px-4 py-2 font-medium">Real (h)</th>
-      {% if can_edit %}<th scope="col" class="px-4 py-2"><span class="sr-only">Acciones</span></th>{% endif %}
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Sprint") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Fechas") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Estado") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Historias") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Puntos") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Plan (h)") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Real (h)") }}</th>
+      <th scope="col" class="px-4 py-2"><span class="sr-only">{{ _("Acciones") }}</span></th>
     </tr></thead>
     <tbody>
       {% for s in sprints %}{% set t = totals.get(s.id) %}
       <tr class="border-b border-line last:border-0">
         <th scope="row" class="px-4 py-2 font-medium text-ink">{{ s.name }}{% if s.goal %}<span class="block text-xs font-normal text-ink-muted">{{ s.goal }}</span>{% endif %}</th>
         <td class="px-4 py-2 text-ink">{{ s.start_date.strftime('%d/%m/%Y') }} – {{ s.end_date.strftime('%d/%m/%Y') }}</td>
-        <td class="px-4 py-2 text-ink">{{ status_labels[s.status] }}</td>
-        <td class="px-4 py-2 text-ink">{{ t.done if t else 0 }} de {{ t.stories if t else 0 }} terminadas</td>
+        <td class="px-4 py-2 text-ink">{{ _(status_labels[s.status]) }}</td>
+        <td class="px-4 py-2 text-ink">{{ _("%s de %s terminadas") | format(t.done if t else 0, t.stories if t else 0) }}</td>
+        <td class="px-4 py-2 text-ink">{{ _("%s de %s") | format(t.points_done if t else 0, t.points if t else 0) }}</td>
         <td class="px-4 py-2 text-ink">{{ t.planned if t else 0 }}</td>
         <td class="px-4 py-2 text-ink">{{ t.actual if t else 0 }}</td>
-        {% if can_edit %}<td class="px-4 py-2 text-right">
-          {% if s.status == 'planned' %}<form method="post" action="{{ url_for('agile.start_sprint', project_id=project.id, sprint_id=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="{{ quiet }}">Iniciar</button></form>
-          {% elif s.status == 'active' %}<form method="post" action="{{ url_for('agile.close_sprint', project_id=project.id, sprint_id=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="{{ quiet }}">Cerrar</button></form>{% endif %}
-        </td>{% endif %}
+        <td class="px-4 py-2 text-right">
+          <div class="flex flex-wrap items-center justify-end gap-2">
+          <a href="{{ url_for('agile.sprints', project_id=project.id, sprint=s.id) }}#avance" class="{{ quiet }}"{% if chosen and chosen.id == s.id %} aria-current="true"{% endif %}>{{ _("Ver avance") }}</a>
+          {% if can_edit and s.status == 'planned' %}<form method="post" action="{{ url_for('agile.start_sprint', project_id=project.id, sprint_id=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="{{ quiet }}">{{ _("Iniciar") }}</button></form>
+          {% elif can_edit and s.status == 'active' %}<form method="post" action="{{ url_for('agile.close_sprint', project_id=project.id, sprint_id=s.id) }}" class="flex flex-wrap items-center gap-2"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="destino-{{ s.id }}" class="text-xs text-ink-muted">{{ _("Lo no terminado pasa a") }}</label>
+            <select id="destino-{{ s.id }}" name="destino" class="{{ input }} py-1 text-xs"><option value="">{{ _("Pendientes (sin sprint)") }}</option>{% for p in planned %}<option value="{{ p.id }}"{% if loop.first %} selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
+            <button type="submit" class="{{ quiet }}">{{ _("Cerrar") }}</button></form>{% endif %}
+          </div>
+        </td>
       </tr>
       {% else %}
-      <tr><td colspan="7" class="px-4 py-4 text-ink-muted">Aún no hay sprints.</td></tr>
+      <tr><td colspan="8" class="px-4 py-4 text-ink-muted">{{ _("Aún no hay sprints.") }}</td></tr>
       {% endfor %}
-      {% if totals.get(none) %}<tr><th scope="row" class="px-4 py-2 font-medium text-ink-muted">Pendientes (sin sprint)</th><td></td><td></td><td class="px-4 py-2 text-ink-muted">{{ totals[none].done }} de {{ totals[none].stories }} terminadas</td><td class="px-4 py-2 text-ink-muted">{{ totals[none].planned }}</td><td class="px-4 py-2 text-ink-muted">{{ totals[none].actual }}</td>{% if can_edit %}<td></td>{% endif %}</tr>{% endif %}
+      {% if totals.get(none) %}{% set t = totals[none] %}<tr><th scope="row" class="px-4 py-2 font-medium text-ink-muted">{{ _("Pendientes (sin sprint)") }}</th><td></td><td></td><td class="px-4 py-2 text-ink-muted">{{ _("%s de %s terminadas") | format(t.done, t.stories) }}</td><td class="px-4 py-2 text-ink-muted">{{ _("%s de %s") | format(t.points_done, t.points) }}</td><td class="px-4 py-2 text-ink-muted">{{ t.planned }}</td><td class="px-4 py-2 text-ink-muted">{{ t.actual }}</td><td></td></tr>{% endif %}
     </tbody>
   </table>
 </div>
+<p class="-mt-6 mb-8 text-xs text-ink-muted">{{ _("Un sprint cerrado muestra lo que tenía al cerrarse y las horas registradas en sus fechas.") }}</p>
+
+{% if chosen and chart %}{% set d = chart.data %}{% set unit = _("puntos") if d.unit == 'points' else _("horas") %}
+<section id="avance" aria-labelledby="avance-titulo" class="mb-8 rounded-lg border border-line bg-surface-raised p-4">
+  <h2 id="avance-titulo" class="mb-1 text-lg font-semibold text-ink">{{ _("Avance de %s") | format(chosen.name) }}</h2>
+  <p class="mb-3 text-sm text-ink-muted">{{ _("Trabajo pendiente por día, en %s. Alcance: %s.") | format(unit, d.scope) }}</p>
+  {% if d.scope %}
+  <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-labelledby="avance-titulo avance-desc" class="h-auto w-full max-w-3xl">
+    <desc id="avance-desc">{{ _("Línea ideal de %s a 0 y línea real hasta hoy; el detalle está en la tabla.") | format(d.scope) }}</desc>
+    <line x1="{{ chart.pad }}" y1="{{ chart.height - chart.pad }}" x2="{{ chart.width - chart.pad }}" y2="{{ chart.height - chart.pad }}" class="stroke-line-strong" stroke-width="1"/>
+    <line x1="{{ chart.pad }}" y1="{{ chart.pad }}" x2="{{ chart.pad }}" y2="{{ chart.height - chart.pad }}" class="stroke-line-strong" stroke-width="1"/>
+    <text x="{{ chart.pad - 6 }}" y="{{ chart.pad + 4 }}" text-anchor="end" class="fill-ink-muted text-[10px]">{{ d.scope }}</text>
+    <text x="{{ chart.pad - 6 }}" y="{{ chart.height - chart.pad + 4 }}" text-anchor="end" class="fill-ink-muted text-[10px]">0</text>
+    <text x="{{ chart.pad }}" y="{{ chart.height - 10 }}" class="fill-ink-muted text-[10px]">{{ d.days[0].strftime('%d/%m') }}</text>
+    <text x="{{ chart.width - chart.pad }}" y="{{ chart.height - 10 }}" text-anchor="end" class="fill-ink-muted text-[10px]">{{ d.days[-1].strftime('%d/%m') }}</text>
+    <polyline points="{{ chart.ideal }}" fill="none" class="stroke-ink-muted" stroke-width="1.5" stroke-dasharray="5 4"/>
+    {% if d.remaining %}<polyline points="{{ chart.real }}" fill="none" class="stroke-brand-600" stroke-width="2.5" stroke-linejoin="round"/>{% endif %}
+  </svg>
+  <p class="mt-2 flex flex-wrap gap-4 text-xs text-ink-muted"><span>- - - {{ _("Ideal") }}</span><span class="font-semibold text-brand-700 dark:text-brand-300">—— {{ _("Real") }}</span></p>
+  {% else %}
+  <p class="text-sm text-ink-muted">{{ _("Este sprint aún no tiene historias con puntos ni horas estimadas.") }}</p>
+  {% endif %}
+  <details class="mt-3">
+    <summary class="cursor-pointer text-sm font-medium text-ink">{{ _("Ver los datos por día") }}</summary>
+    <table aria-label="{{ _('Avance por día') }}" class="mt-2 text-left text-sm">
+      <thead class="text-ink-muted"><tr><th scope="col" class="px-3 py-1 font-medium">{{ _("Día") }}</th><th scope="col" class="px-3 py-1 font-medium">{{ _("Ideal") }}</th><th scope="col" class="px-3 py-1 font-medium">{{ _("Real") }}</th></tr></thead>
+      <tbody>{% for day, ideal, real in chart.rows %}<tr><th scope="row" class="px-3 py-1 font-normal text-ink">{{ day.strftime('%d/%m/%Y') }}</th><td class="px-3 py-1 text-ink">{{ ideal }}</td><td class="px-3 py-1 text-ink">{{ real if real is not none else '—' }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </details>
+</section>
+{% endif %}
+
 {% if can_edit %}
-<h2 class="mb-3 text-lg font-semibold text-ink">Nuevo sprint</h2>
+<h2 class="mb-3 text-lg font-semibold text-ink">{{ _("Nuevo sprint") }}</h2>
 <form method="post" action="{{ url_for('agile.create_sprint', project_id=project.id) }}" class="grid gap-4 rounded-lg border border-line bg-surface-raised p-4 sm:grid-cols-2 lg:grid-cols-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div><label for="nombre" class="mb-1 block text-sm font-medium text-ink">Nombre</label><input id="nombre" name="nombre" required maxlength="120" class="block w-full {{ input }}"></div>
-  <div><label for="inicio" class="mb-1 block text-sm font-medium text-ink">Inicio</label><input id="inicio" type="date" name="inicio" required class="block w-full {{ input }}"></div>
-  <div><label for="fin" class="mb-1 block text-sm font-medium text-ink">Fin</label><input id="fin" type="date" name="fin" required class="block w-full {{ input }}"></div>
-  <div class="sm:col-span-2 lg:col-span-4"><label for="objetivo" class="mb-1 block text-sm font-medium text-ink">Objetivo</label><input id="objetivo" name="objetivo" maxlength="2000" class="block w-full {{ input }}"></div>
-  <div class="sm:col-span-2 lg:col-span-4"><button type="submit" class="{{ primary }}">Crear sprint</button></div>
+  <div><label for="nombre" class="mb-1 block text-sm font-medium text-ink">{{ _("Nombre") }}</label><input id="nombre" name="nombre" required maxlength="120" class="block w-full {{ input }}"></div>
+  <div><label for="inicio" class="mb-1 block text-sm font-medium text-ink">{{ _("Fecha de inicio") }}</label><input id="inicio" type="date" name="inicio" required class="block w-full {{ input }}"></div>
+  <div><label for="fin" class="mb-1 block text-sm font-medium text-ink">{{ _("Fecha de fin") }}</label><input id="fin" type="date" name="fin" required class="block w-full {{ input }}"></div>
+  <div class="sm:col-span-2 lg:col-span-4"><label for="objetivo" class="mb-1 block text-sm font-medium text-ink">{{ _("Objetivo") }}</label><input id="objetivo" name="objetivo" maxlength="2000" class="block w-full {{ input }}"></div>
+  <div class="sm:col-span-2 lg:col-span-4"><button type="submit" class="{{ primary }}">{{ _("Crear sprint") }}</button></div>
 </form>
 {% endif %}
 {% endblock %}

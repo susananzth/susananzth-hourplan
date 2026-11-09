@@ -135,7 +135,7 @@ def lifecycle(session: Session, today: date) -> None:
 
 
 def _agile(session: Session, today: date) -> None:
-    """PJ-00002 runs as Scrum: an epic, an active sprint and three stories on the board."""
+    """PJ-00002 runs as Scrum: an epic, an active sprint and three pointed stories on the board."""
     project = session.scalar(select(Project).where(Project.code == "PJ-00002"))
     if project is None:
         return
@@ -154,11 +154,19 @@ def _agile(session: Session, today: date) -> None:
         actor_id=None,
     )
     agile.start_sprint(session, project.id, sprint.id, actor_id=None)
-    for number, (title, hours) in enumerate(
-        (("Formulario de emisión", "6"), ("Validación de datos", "4"), ("Vista previa", "3")),
-        start=901,
-    ):
-        agile.create_story(
+    stories = (
+        ("Formulario de emisión", "6", 5, "DONE"),
+        ("Validación de datos", "4", 3, "IN_PROGRESS"),
+        ("Vista previa", "3", 2, None),
+    )
+    status = {
+        item.code: item.id
+        for item in session.scalars(select(CatalogItem).where(CatalogItem.kind == "project_status"))
+    }
+    if "IN_PROGRESS" in status:
+        agile.set_wip_limits(session, project.id, {status["IN_PROGRESS"]: 2}, actor_id=None)
+    for number, (title, hours, points, code) in enumerate(stories, start=901):
+        story = agile.create_story(
             session,
             project.id,
             agile.StoryData(
@@ -167,9 +175,19 @@ def _agile(session: Session, today: date) -> None:
                 epic_id=epic.id,
                 sprint_id=sprint.id,
                 base_effort_hours=Decimal(hours),
+                story_points=points,
             ),
             actor_id=None,
         )
+        if code in status:
+            agile.move_story(
+                session,
+                project.id,
+                story.id,
+                status[code],
+                actor_id=None,
+                on=today - timedelta(days=3),
+            )
 
 
 def _monday(day: date) -> date:

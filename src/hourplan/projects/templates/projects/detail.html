@@ -19,8 +19,8 @@
 {% if warning %}<p role="status" class="mb-4 rounded-md border border-line-strong bg-surface-raised p-3 text-sm text-ink">{{ warning }}</p>{% endif %}
 {% if project.notes %}<p class="mb-6 whitespace-pre-line text-sm text-ink">{{ project.notes }}</p>{% endif %}
 
-<p class="mb-4 text-sm text-ink-muted">Metodología: <strong class="font-medium text-ink">{{ profile.label }}</strong> · {{ profile.summary }}
-  {% if agile and project.kind == 'project' %}· <a href="{{ url_for('agile.board', project_id=project.id) }}" class="font-medium text-brand-700 underline dark:text-brand-300">Trabajo ágil</a>{% endif %}</p>
+<p class="mb-4 text-sm text-ink-muted">{{ _("Metodología") }}: <strong class="font-medium text-ink">{{ _(profile.label) }}</strong> · {{ _(profile.summary) }}
+  {% if agile and project.kind == 'project' %}· <a href="{{ url_for('agile.board', project_id=project.id) }}" class="font-medium text-brand-700 underline dark:text-brand-300">{{ _("Trabajo ágil") }}</a>{% endif %}</p>
 {% if profile.phases %}
 <h2 class="mb-3 text-lg font-semibold text-ink">Fases</h2>
 <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
