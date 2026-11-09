@@ -16,3 +16,4 @@ src/hourplan/static/vendor
 *.xls
 *.csv
 *.log
+backups
