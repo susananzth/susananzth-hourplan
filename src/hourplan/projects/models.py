@@ -180,6 +180,7 @@ class Project(IdMixin, TimestampMixin, Base):
             " AND (contingency_hours IS NULL OR contingency_hours >= 0)",
             name="hours",
         ),
+        CheckConstraint("story_points BETWEEN 0 AND 100", name="story_points"),
     )
 
     kind: Mapped[str] = mapped_column(String(10), default=ProjectKind.PROJECT)
@@ -203,6 +204,8 @@ class Project(IdMixin, TimestampMixin, Base):
     base_effort_hours: Mapped[Decimal | None] = mapped_column(LongHours)
     # Reserve for incidents and tickets during the project, kept apart from the base effort.
     contingency_hours: Mapped[Decimal | None] = mapped_column(LongHours)
+    # Relative size of a story, as the team estimates it. Hours stay the measure of effort.
+    story_points: Mapped[int | None] = mapped_column(SmallInteger)
     closed_on: Mapped[date | None] = mapped_column(Date)
     # Free-text log of the project (the "bitácora" column of the backlog sheet).
     notes: Mapped[str | None] = mapped_column(Text)
@@ -274,6 +277,40 @@ Index(
     unique=True,
     postgresql_where=text("status = 'active'"),
 )
+
+
+class SprintStory(Base):
+    """What a sprint held when it was closed, so its history survives moving unfinished work."""
+
+    __tablename__ = "sprint_story"
+    __table_args__ = (CheckConstraint("planned_hours >= 0", name="planned_hours"),)
+
+    sprint_id: Mapped[int] = mapped_column(
+        ForeignKey("sprint.id", ondelete="CASCADE"), primary_key=True
+    )
+    story_id: Mapped[int] = mapped_column(
+        ForeignKey("project.id", ondelete="CASCADE"), primary_key=True
+    )
+    story_points: Mapped[int | None] = mapped_column(SmallInteger)
+    planned_hours: Mapped[Decimal | None] = mapped_column(LongHours)
+    done_on: Mapped[date | None] = mapped_column(Date)
+    # Where an unfinished story went: another sprint, or none for the backlog.
+    carried_to_id: Mapped[int | None] = mapped_column(ForeignKey("sprint.id", ondelete="SET NULL"))
+
+
+class BoardLimit(Base):
+    """Most stories a board column may hold at once (work in progress)."""
+
+    __tablename__ = "board_limit"
+    __table_args__ = (CheckConstraint("wip_limit >= 1", name="wip_limit"),)
+
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("project.id", ondelete="CASCADE"), primary_key=True
+    )
+    status_id: Mapped[int] = mapped_column(
+        ForeignKey("catalog_item.id", ondelete="CASCADE"), primary_key=True
+    )
+    wip_limit: Mapped[int] = mapped_column(SmallInteger)
 
 
 class ProjectPhase(PhaseStepMixin, IdMixin, Base):

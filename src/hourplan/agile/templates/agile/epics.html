@@ -1,45 +1,47 @@
 {% extends "base.html" %}
-{% block title %}Épicas · {{ project.code }} · HourPlan{% endblock %}
+{% block title %}{{ _("Épicas") }} · {{ project.code }} · HourPlan{% endblock %}
 {% block content %}
 {% set input = "rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
 {% set primary = "rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600" %}
 {% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
 {% include "agile/_nav.html" %}
-<h2 class="mb-3 text-lg font-semibold text-ink">Épicas</h2>
+<h2 class="mb-3 text-lg font-semibold text-ink">{{ _("Épicas") }}</h2>
 <div class="mb-8 overflow-x-auto rounded-lg border border-line bg-surface-raised">
-  <table aria-label="Épicas" class="w-full text-left text-sm">
+  <table aria-label="{{ _('Épicas') }}" class="w-full text-left text-sm">
     <thead class="border-b border-line text-ink-muted"><tr>
-      <th scope="col" class="px-4 py-2 font-medium">Épica</th>
-      <th scope="col" class="px-4 py-2 font-medium">Estado</th>
-      <th scope="col" class="px-4 py-2 font-medium">Historias</th>
-      <th scope="col" class="px-4 py-2 font-medium">Plan (h)</th>
-      <th scope="col" class="px-4 py-2 font-medium">Real (h)</th>
-      {% if can_edit %}<th scope="col" class="px-4 py-2"><span class="sr-only">Acciones</span></th>{% endif %}
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Épica") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Estado") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Historias") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Puntos") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Plan (h)") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Real (h)") }}</th>
+      {% if can_edit %}<th scope="col" class="px-4 py-2"><span class="sr-only">{{ _("Acciones") }}</span></th>{% endif %}
     </tr></thead>
     <tbody>
       {% for e in epics %}{% set t = totals.get(e.id) %}
       <tr class="border-b border-line last:border-0">
         <th scope="row" class="px-4 py-2 font-medium text-ink">{{ e.name }}{% if e.description %}<span class="block text-xs font-normal text-ink-muted">{{ e.description }}</span>{% endif %}</th>
-        <td class="px-4 py-2 text-ink">{{ 'Abierta' if e.status == 'open' else 'Terminada' }}</td>
-        <td class="px-4 py-2 text-ink">{{ t.done if t else 0 }} de {{ t.stories if t else 0 }} terminadas</td>
+        <td class="px-4 py-2 text-ink">{{ _("Abierta") if e.status == 'open' else _("Terminada") }}</td>
+        <td class="px-4 py-2 text-ink">{{ _("%s de %s terminadas") | format(t.done if t else 0, t.stories if t else 0) }}</td>
+        <td class="px-4 py-2 text-ink">{{ _("%s de %s") | format(t.points_done if t else 0, t.points if t else 0) }}</td>
         <td class="px-4 py-2 text-ink">{{ t.planned if t else 0 }}</td>
         <td class="px-4 py-2 text-ink">{{ t.actual if t else 0 }}</td>
         {% if can_edit %}<td class="px-4 py-2 text-right"><form method="post" action="{{ url_for('agile.set_epic_status', project_id=project.id, epic_id=e.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" name="estado" value="{{ 'done' if e.status == 'open' else 'open' }}" class="{{ quiet }}">{{ 'Marcar terminada' if e.status == 'open' else 'Reabrir' }}</button></form></td>{% endif %}
+          <button type="submit" name="estado" value="{{ 'done' if e.status == 'open' else 'open' }}" class="{{ quiet }}">{{ _("Marcar terminada") if e.status == 'open' else _("Reabrir") }}</button></form></td>{% endif %}
       </tr>
       {% else %}
-      <tr><td colspan="6" class="px-4 py-4 text-ink-muted">Aún no hay épicas.</td></tr>
+      <tr><td colspan="7" class="px-4 py-4 text-ink-muted">{{ _("Aún no hay épicas.") }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 {% if can_edit %}
-<h2 class="mb-3 text-lg font-semibold text-ink">Nueva épica</h2>
+<h2 class="mb-3 text-lg font-semibold text-ink">{{ _("Nueva épica") }}</h2>
 <form method="post" action="{{ url_for('agile.create_epic', project_id=project.id) }}" class="grid gap-4 rounded-lg border border-line bg-surface-raised p-4 sm:grid-cols-2">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div><label for="nombre" class="mb-1 block text-sm font-medium text-ink">Nombre</label><input id="nombre" name="nombre" required maxlength="120" class="block w-full {{ input }}"></div>
-  <div><label for="descripcion" class="mb-1 block text-sm font-medium text-ink">Descripción</label><input id="descripcion" name="descripcion" maxlength="5000" class="block w-full {{ input }}"></div>
-  <div class="sm:col-span-2"><button type="submit" class="{{ primary }}">Crear épica</button></div>
+  <div><label for="nombre" class="mb-1 block text-sm font-medium text-ink">{{ _("Nombre") }}</label><input id="nombre" name="nombre" required maxlength="120" class="block w-full {{ input }}"></div>
+  <div><label for="descripcion" class="mb-1 block text-sm font-medium text-ink">{{ _("Descripción") }}</label><input id="descripcion" name="descripcion" maxlength="5000" class="block w-full {{ input }}"></div>
+  <div class="sm:col-span-2"><button type="submit" class="{{ primary }}">{{ _("Crear épica") }}</button></div>
 </form>
 {% endif %}
 {% endblock %}

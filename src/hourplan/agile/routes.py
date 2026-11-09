@@ -1,7 +1,7 @@
 """Agile screens of a project: board with backlog, sprints and epics (offered per methodology)."""
 
 from collections.abc import Callable
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -17,7 +17,8 @@ from hourplan.catalogs import services as catalogs
 from hourplan.catalogs.models import CatalogKind
 from hourplan.extensions import db
 from hourplan.projects.methodology import profile_of
-from hourplan.projects.models import EpicStatus, Project
+from hourplan.projects.models import EpicStatus, Project, SprintStatus
+from hourplan.shared.i18n import _
 from hourplan.shared.labels import label, validation_message
 
 bp = Blueprint(
@@ -34,6 +35,15 @@ SPRINT_STATUS = {"planned": "Planificado", "active": "Activo", "closed": "Cerrad
 def _int(raw: str | None) -> int | None:
     raw = (raw or "").strip()
     return int(raw) if raw.isdigit() else None
+
+
+def _points(raw: str | None) -> int | None:
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    if not raw.isdigit():
+        raise ValueError(_("Puntos: escribe un número entero, por ejemplo 3 u 8."))
+    return int(raw)
 
 
 def _hours(raw: str | None) -> Decimal | None:
@@ -70,9 +80,15 @@ def _act(project_id: int, success: str, target: str, action: Callable[[], Any]) 
         action()
     except (ValueError, ValidationError) as err:
         db.session.rollback()
-        flash(validation_message(err) if isinstance(err, ValidationError) else str(err), "error")
+        if isinstance(err, ValidationError):
+            message = validation_message(err)
+        elif isinstance(err, services.AgileError):
+            message = err.translated(_)
+        else:
+            message = _(str(err))
+        flash(message, "error")
     else:
-        flash(success, "info")
+        flash(_(success), "info")
     return redirect(url_for(target, project_id=project_id))
 
 
@@ -100,12 +116,13 @@ def board(project_id: int) -> str:
     columns: list[tuple[int | None, str, list[Project]]] = [
         (s.id, s.name, [x for x in stories if x.status_id == s.id]) for s in statuses
     ]
-    columns.insert(0, (None, "Sin estado", [x for x in stories if x.status_id is None]))
+    columns.insert(0, (None, _("Sin estado"), [x for x in stories if x.status_id is None]))
     return _page(
         project,
         "board",
         "agile/board.html",
         columns=columns,
+        limits=services.wip_limits(db.session, project_id),
         stories=stories,
         epics={e.id: e for e in services.list_epics(db.session, project_id)},
         sprints={s.id: s for s in services.list_sprints(db.session, project_id)},
@@ -128,6 +145,7 @@ def create_story(project_id: int) -> Response:
                 epic_id=_int(form.get("epica")),
                 sprint_id=_int(form.get("sprint")),
                 base_effort_hours=_hours(form.get("esfuerzo")),
+                story_points=_points(form.get("puntos")),
             ),
             actor_id=_actor(),
         )
@@ -147,6 +165,7 @@ def assign_story(project_id: int, story_id: int) -> Response:
             story_id,
             epic_id=_int(request.form.get("epica")),
             sprint_id=_int(request.form.get("sprint")),
+            story_points=_points(request.form.get("puntos")),
             actor_id=_actor(),
         )
 
@@ -170,18 +189,84 @@ def move_story(project_id: int, story_id: int) -> Response:
     return _act(project_id, "Historia movida.", "agile.board", run)
 
 
+@bp.post("/limites")
+@roles_required(*EDITORS)
+def set_limits(project_id: int) -> Response:
+    _project(project_id, "board")
+    statuses = catalogs.list_items(db.session, CatalogKind.PROJECT_STATUS)
+
+    def run() -> None:
+        limits: dict[int, int | None] = {}
+        for status in statuses:
+            raw = (request.form.get(f"limite-{status.id}") or "").strip()
+            if raw and not raw.isdigit():
+                raise ValueError(_("Límite: escribe un número entero o déjalo vacío."))
+            limits[status.id] = int(raw) if raw else None
+        services.set_wip_limits(db.session, project_id, limits, actor_id=_actor())
+
+    return _act(project_id, "Límites guardados.", "agile.board", run)
+
+
 @bp.get("/sprints")
 @roles_required(*VIEWERS)
 def sprints(project_id: int) -> str:
     project = _project(project_id, "sprints")
+    sprints = services.list_sprints(db.session, project_id)
+    chosen = _pick_sprint(sprints, _int(request.args.get("sprint")))
     return _page(
         project,
         "sprints",
         "agile/sprints.html",
-        sprints=services.list_sprints(db.session, project_id),
+        sprints=sprints,
         totals=services.sprint_totals(db.session, project_id),
         status_labels=SPRINT_STATUS,
+        chosen=chosen,
+        chart=(
+            None
+            if chosen is None
+            else chart(
+                services.burndown(
+                    db.session, project_id, chosen.id, today=datetime.now().astimezone().date()
+                )
+            )
+        ),
+        planned=[s for s in sprints if s.status == SprintStatus.PLANNED.value],
     )
+
+
+def _pick_sprint(sprints: list[Any], wanted: int | None) -> Any:
+    """The sprint asked for, else the active one, else the last closed one."""
+    by_id = {s.id: s for s in sprints}
+    if wanted in by_id:
+        return by_id[wanted]
+    active = [s for s in sprints if s.status == SprintStatus.ACTIVE.value]
+    closed = [s for s in sprints if s.status == SprintStatus.CLOSED.value]
+    return (active or closed[-1:] or [None])[0]
+
+
+def chart(data: services.Burndown) -> dict[str, Any]:
+    """Points of an SVG line chart for the burndown, in a fixed 600x240 box."""
+    width, height, pad = 600, 240, 32
+    top = float(data.scope) or 1.0
+    steps = max(len(data.days) - 1, 1)
+
+    def xy(n: int, value: Decimal) -> str:
+        x = pad + (width - 2 * pad) * n / steps
+        y = height - pad - (height - 2 * pad) * float(value) / top
+        return f"{x:.1f},{y:.1f}"
+
+    return {
+        "width": width,
+        "height": height,
+        "pad": pad,
+        "ideal": " ".join(xy(n, v) for n, v in enumerate(data.ideal)),
+        "real": " ".join(xy(n, v) for n, v in enumerate(data.remaining)),
+        "data": data,
+        "rows": [
+            (day, data.ideal[n], data.remaining[n] if n < len(data.remaining) else None)
+            for n, day in enumerate(data.days)
+        ],
+    }
 
 
 @bp.post("/sprints")
@@ -226,7 +311,13 @@ def close_sprint(project_id: int, sprint_id: int) -> Response:
         project_id,
         "Sprint cerrado.",
         "agile.sprints",
-        lambda: services.close_sprint(db.session, project_id, sprint_id, actor_id=_actor()),
+        lambda: services.close_sprint(
+            db.session,
+            project_id,
+            sprint_id,
+            carry_to=_int(request.form.get("destino")),
+            actor_id=_actor(),
+        ),
     )
 
 

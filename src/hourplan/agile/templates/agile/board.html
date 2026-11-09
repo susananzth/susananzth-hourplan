@@ -1,28 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Tablero · {{ project.code }} · HourPlan{% endblock %}
+{% block title %}{{ _("Tablero") }} · {{ project.code }} · HourPlan{% endblock %}
 {% block content %}
 {% set input = "rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
 {% set primary = "rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600" %}
 {% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
 {% include "agile/_nav.html" %}
-<h2 class="mb-3 text-lg font-semibold text-ink">Tablero</h2>
+<h2 class="mb-3 text-lg font-semibold text-ink">{{ _("Tablero") }}</h2>
 <div class="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
   {% for status_id, name, cards in columns if cards or status_id is not none %}
-  <section aria-labelledby="col-{{ status_id or 0 }}" class="rounded-lg border border-line bg-surface-raised p-3">
-    <h3 id="col-{{ status_id or 0 }}" class="mb-3 text-sm font-semibold text-ink">{{ name }} <span class="font-normal text-ink-muted">({{ cards | length }})</span></h3>
+  {% set limit = limits.get(status_id) %}{% set full = limit is not none and cards | length >= limit %}
+  <section aria-labelledby="col-{{ status_id or 0 }}" class="rounded-lg border {{ 'border-line-strong' if full else 'border-line' }} bg-surface-raised p-3">
+    <h3 id="col-{{ status_id or 0 }}" class="mb-3 text-sm font-semibold text-ink">{{ name }}
+      <span class="font-normal text-ink-muted">({% if limit is not none %}{{ _("%s de %s") | format(cards | length, limit) }}{% else %}{{ cards | length }}{% endif %})</span>
+      {% if full %}<span class="ml-1 rounded bg-surface px-1.5 py-0.5 text-xs font-medium text-ink">{{ _("Límite alcanzado") if cards | length == limit else _("Sobre el límite") }}</span>{% endif %}
+    </h3>
     <ul class="space-y-2">
       {% for s in cards %}
       <li class="rounded-md border border-line bg-surface p-2 text-sm">
         <p class="font-medium text-ink">{{ s.code }} · {{ s.title }}</p>
-        <p class="text-xs text-ink-muted">{% if s.epic_id %}Épica: {{ epics[s.epic_id].name }} · {% endif %}{% if s.sprint_id %}{{ sprints[s.sprint_id].name }} · {% endif %}{{ s.base_effort_hours if s.base_effort_hours is not none else '—' }} h</p>
+        <p class="text-xs text-ink-muted">{% if s.epic_id %}{{ _("Épica") }}: {{ epics[s.epic_id].name }} · {% endif %}{% if s.sprint_id %}{{ sprints[s.sprint_id].name }} · {% endif %}{% if s.story_points is not none %}{{ _("%s pts") | format(s.story_points) }} · {% endif %}{{ s.base_effort_hours if s.base_effort_hours is not none else '—' }} h</p>
         {% if can_move %}
         <form method="post" action="{{ url_for('agile.move_story', project_id=project.id, story_id=s.id) }}" class="mt-2 flex gap-2">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <select name="estado" aria-label="Estado de {{ s.code }}" class="{{ input }} py-1 text-xs">
-            <option value=""{% if s.status_id is none %} selected{% endif %}>Sin estado</option>
+          <select name="estado" aria-label="{{ _('Estado de %s') | format(s.code) }}" class="{{ input }} py-1 text-xs">
+            <option value=""{% if s.status_id is none %} selected{% endif %}>{{ _("Sin estado") }}</option>
             {% for sid, sname, _c in columns if sid is not none %}<option value="{{ sid }}"{% if s.status_id == sid %} selected{% endif %}>{{ sname }}</option>{% endfor %}
           </select>
-          <button type="submit" class="{{ quiet }}">Mover</button>
+          <button type="submit" class="{{ quiet }}">{{ _("Mover") }}</button>
         </form>
         {% endif %}
       </li>
@@ -31,39 +35,54 @@
   </section>
   {% endfor %}
 </div>
-{% if not stories %}<p class="mb-8 text-sm text-ink-muted">Aún no hay historias. Crea la primera abajo.</p>{% endif %}
+{% if not stories %}<p class="mb-8 text-sm text-ink-muted">{{ _("Aún no hay historias. Crea la primera abajo.") }}</p>{% endif %}
 
 {% if can_edit %}
-<h2 class="mb-3 text-lg font-semibold text-ink">Nueva historia</h2>
+<details class="mb-8 rounded-lg border border-line bg-surface-raised p-4"{% if limits %} open{% endif %}>
+  <summary class="cursor-pointer text-sm font-semibold text-ink">{{ _("Límites de trabajo en curso") }}</summary>
+  <p class="mt-2 text-sm text-ink-muted">{{ _("Cuántas historias puede tener cada columna a la vez. Vacío es sin límite.") }}</p>
+  <form method="post" action="{{ url_for('agile.set_limits', project_id=project.id) }}" class="mt-3 grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for sid, sname, _c in columns if sid is not none %}
+    <div><label for="limite-{{ sid }}" class="mb-1 block text-sm font-medium text-ink">{{ sname }}</label><input id="limite-{{ sid }}" name="limite-{{ sid }}" type="number" min="1" max="999" inputmode="numeric" value="{{ limits.get(sid, '') }}" class="block w-full {{ input }}"></div>
+    {% endfor %}
+    <div class="sm:col-span-3 lg:col-span-6"><button type="submit" class="{{ primary }}">{{ _("Guardar límites") }}</button></div>
+  </form>
+</details>
+
+<h2 class="mb-3 text-lg font-semibold text-ink">{{ _("Nueva historia") }}</h2>
 <form method="post" action="{{ url_for('agile.create_story', project_id=project.id) }}" class="mb-8 grid gap-4 rounded-lg border border-line bg-surface-raised p-4 sm:grid-cols-2 lg:grid-cols-3">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div><label for="codigo" class="mb-1 block text-sm font-medium text-ink">Código</label><input id="codigo" name="codigo" required maxlength="40" class="block w-full {{ input }}"></div>
-  <div class="lg:col-span-2"><label for="titulo" class="mb-1 block text-sm font-medium text-ink">Título</label><input id="titulo" name="titulo" required maxlength="200" class="block w-full {{ input }}"></div>
-  {% if profile.epics %}<div><label for="epica" class="mb-1 block text-sm font-medium text-ink">Épica</label>
-    <select id="epica" name="epica" class="block w-full {{ input }}"><option value="">Ninguna</option>{% for e in epics.values() %}<option value="{{ e.id }}">{{ e.name }}</option>{% endfor %}</select></div>{% endif %}
-  {% if profile.sprints %}<div><label for="sprint" class="mb-1 block text-sm font-medium text-ink">Sprint</label>
-    <select id="sprint" name="sprint" class="block w-full {{ input }}"><option value="">Pendientes (sin sprint)</option>{% for sp in sprints.values() if sp.status != 'closed' %}<option value="{{ sp.id }}">{{ sp.name }}</option>{% endfor %}</select></div>{% endif %}
-  <div><label for="esfuerzo" class="mb-1 block text-sm font-medium text-ink">Esfuerzo (h)</label><input id="esfuerzo" name="esfuerzo" inputmode="decimal" class="block w-full {{ input }}"></div>
-  <div class="sm:col-span-2 lg:col-span-3"><button type="submit" class="{{ primary }}">Crear historia</button></div>
+  <div><label for="codigo" class="mb-1 block text-sm font-medium text-ink">{{ _("Código") }}</label><input id="codigo" name="codigo" required maxlength="40" class="block w-full {{ input }}"></div>
+  <div class="lg:col-span-2"><label for="titulo" class="mb-1 block text-sm font-medium text-ink">{{ _("Título") }}</label><input id="titulo" name="titulo" required maxlength="200" class="block w-full {{ input }}"></div>
+  {% if profile.epics %}<div><label for="epica" class="mb-1 block text-sm font-medium text-ink">{{ _("Épica") }}</label>
+    <select id="epica" name="epica" class="block w-full {{ input }}"><option value="">{{ _("Ninguna") }}</option>{% for e in epics.values() %}<option value="{{ e.id }}">{{ e.name }}</option>{% endfor %}</select></div>{% endif %}
+  {% if profile.sprints %}<div><label for="sprint" class="mb-1 block text-sm font-medium text-ink">{{ _("Sprint") }}</label>
+    <select id="sprint" name="sprint" class="block w-full {{ input }}"><option value="">{{ _("Pendientes (sin sprint)") }}</option>{% for sp in sprints.values() if sp.status != 'closed' %}<option value="{{ sp.id }}">{{ sp.name }}</option>{% endfor %}</select></div>{% endif %}
+  <div><label for="esfuerzo" class="mb-1 block text-sm font-medium text-ink">{{ _("Esfuerzo (h)") }}</label><input id="esfuerzo" name="esfuerzo" inputmode="decimal" class="block w-full {{ input }}"></div>
+  <div><label for="puntos" class="mb-1 block text-sm font-medium text-ink">{{ _("Puntos") }}</label><input id="puntos" name="puntos" type="number" min="0" max="100" inputmode="numeric" class="block w-full {{ input }}"></div>
+  <div class="sm:col-span-2 lg:col-span-3"><button type="submit" class="{{ primary }}">{{ _("Crear historia") }}</button></div>
 </form>
 
-{% if (profile.epics or profile.sprints) and stories %}
-<h2 class="mb-3 text-lg font-semibold text-ink">Asignar historias</h2>
+{% if stories %}
+<h2 class="mb-3 text-lg font-semibold text-ink">{{ _("Planificar historias") }}</h2>
 <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
-  <table aria-label="Asignar historias" class="w-full text-left text-sm">
+  <table aria-label="{{ _('Planificar historias') }}" class="w-full text-left text-sm">
     <thead class="border-b border-line text-ink-muted"><tr>
-      <th scope="col" class="px-4 py-2 font-medium">Historia</th>
-      {% if profile.epics %}<th scope="col" class="px-4 py-2 font-medium">Épica</th>{% endif %}
-      {% if profile.sprints %}<th scope="col" class="px-4 py-2 font-medium">Sprint</th>{% endif %}
-      <th scope="col" class="px-4 py-2"><span class="sr-only">Guardar</span></th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Historia") }}</th>
+      {% if profile.epics %}<th scope="col" class="px-4 py-2 font-medium">{{ _("Épica") }}</th>{% endif %}
+      {% if profile.sprints %}<th scope="col" class="px-4 py-2 font-medium">{{ _("Sprint") }}</th>{% endif %}
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Puntos") }}</th>
+      <th scope="col" class="px-4 py-2"><span class="sr-only">{{ _("Guardar") }}</span></th>
     </tr></thead>
     <tbody>
       {% for s in stories %}{% set f = 'asig-' ~ s.id %}
       <tr class="border-b border-line last:border-0">
         <th scope="row" class="px-4 py-2 font-medium text-ink">{{ s.code }} · {{ s.title }}<form id="{{ f }}" method="post" action="{{ url_for('agile.assign_story', project_id=project.id, story_id=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form></th>
-        {% if profile.epics %}<td class="px-4 py-2"><select form="{{ f }}" name="epica" aria-label="Épica de {{ s.code }}" class="{{ input }}"><option value="">Ninguna</option>{% for e in epics.values() %}<option value="{{ e.id }}"{% if s.epic_id == e.id %} selected{% endif %}>{{ e.name }}</option>{% endfor %}</select></td>{% endif %}
-        {% if profile.sprints %}<td class="px-4 py-2"><select form="{{ f }}" name="sprint" aria-label="Sprint de {{ s.code }}" class="{{ input }}"><option value="">Pendientes (sin sprint)</option>{% for sp in sprints.values() if sp.status != 'closed' or s.sprint_id == sp.id %}<option value="{{ sp.id }}"{% if s.sprint_id == sp.id %} selected{% endif %}>{{ sp.name }}</option>{% endfor %}</select></td>{% endif %}
-        <td class="px-4 py-2 text-right"><button form="{{ f }}" type="submit" class="{{ quiet }}">Guardar</button></td>
+        {% if profile.epics %}<td class="px-4 py-2"><select form="{{ f }}" name="epica" aria-label="{{ _('Épica de %s') | format(s.code) }}" class="{{ input }}"><option value="">{{ _("Ninguna") }}</option>{% for e in epics.values() %}<option value="{{ e.id }}"{% if s.epic_id == e.id %} selected{% endif %}>{{ e.name }}</option>{% endfor %}</select></td>{% endif %}
+        {% if profile.sprints %}<td class="px-4 py-2"><select form="{{ f }}" name="sprint" aria-label="{{ _('Sprint de %s') | format(s.code) }}" class="{{ input }}"><option value="">{{ _("Pendientes (sin sprint)") }}</option>{% for sp in sprints.values() if sp.status != 'closed' or s.sprint_id == sp.id %}<option value="{{ sp.id }}"{% if s.sprint_id == sp.id %} selected{% endif %}>{{ sp.name }}</option>{% endfor %}</select></td>{% endif %}
+        <td class="px-4 py-2">{% if not profile.epics %}<input type="hidden" form="{{ f }}" name="epica" value="{{ s.epic_id or '' }}">{% endif %}{% if not profile.sprints %}<input type="hidden" form="{{ f }}" name="sprint" value="{{ s.sprint_id or '' }}">{% endif %}<input form="{{ f }}" name="puntos" type="number" min="0" max="100" inputmode="numeric" value="{{ s.story_points if s.story_points is not none else '' }}" aria-label="{{ _('Puntos de %s') | format(s.code) }}" class="w-24 {{ input }}"></td>
+        <td class="px-4 py-2 text-right"><button form="{{ f }}" type="submit" class="{{ quiet }}">{{ _("Guardar") }}</button></td>
       </tr>
       {% endfor %}
     </tbody>
