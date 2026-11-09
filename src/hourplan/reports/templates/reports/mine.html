@@ -5,7 +5,10 @@
 {% include "reports/_tabs.html" %}
 <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
   <h1 class="text-2xl font-semibold text-ink">Mi informe</h1>
-  {% if lines is not none %}{{ period(start, end) }}{% endif %}
+  {% if lines is not none %}<div class="flex flex-wrap items-end gap-3">
+    {{ period(start, end) }}
+    <a href="{{ url_for('reports.export_mine', desde=start.isoformat(), hasta=end.isoformat()) }}" class="rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-ink hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Descargar Excel</a>
+  </div>{% endif %}
 </div>
 {% if lines is none %}
 <p class="text-ink-muted">Tu usuario todavía no está vinculado a un recurso. Pide a un administrador que lo vincule para ver tu informe.</p>

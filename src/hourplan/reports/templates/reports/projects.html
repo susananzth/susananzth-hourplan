@@ -14,6 +14,7 @@
     <div><label for="cerrados" class="mb-1 block text-xs text-ink-muted">Proyectos</label>
       <select id="cerrados" name="cerrados" class="{{ input }}"><option value="1"{% if show_closed %} selected{% endif %}>Abiertos y cerrados</option><option value="0"{% if not show_closed %} selected{% endif %}>Solo abiertos</option></select></div>
     <button type="submit" class="{{ primary }}">Ver</button>
+    <a href="{{ url_for('reports.export_projects', cartera=portfolio_id or '', cerrados='1' if show_closed else '0') }}" class="rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-ink hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Descargar Excel</a>
   </form>
 </div>
 <p class="mb-4 text-sm text-ink-muted">Lo planificado es la línea base; si no hay, la última versión del plan. La desviación es contra lo planificado, en más o en menos. En proyectos abiertos las fechas son provisionales.</p>

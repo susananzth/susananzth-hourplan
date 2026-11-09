@@ -1,8 +1,9 @@
 """Reports: plan versus actual per project, compliance, rework and the hours dashboard."""
 
 from datetime import date, datetime, timedelta
+from io import BytesIO
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user
 from sqlalchemy import select
 from werkzeug.wrappers import Response
@@ -15,6 +16,7 @@ from hourplan.policies import services as policies
 from hourplan.policies.models import EvaluationPolicy
 from hourplan.projects.models import Project
 from hourplan.reports import compare, dashboard, notes
+from hourplan.reports import export as xlsx
 from hourplan.resources.models import Resource
 
 bp = Blueprint("reports", __name__, url_prefix="/informes", template_folder="templates")
@@ -194,3 +196,39 @@ def mine() -> str:
         tasks=dashboard.hours_by(db.session, "tipo", start, end, resource_id=resource.id),
         notes=notes.notes_for_resource(db.session, resource.id),
     )
+
+
+def _download(content: bytes, name: str) -> Response:
+    return send_file(
+        BytesIO(content), mimetype=xlsx.XLSX_TYPE, as_attachment=True, download_name=name
+    )
+
+
+@bp.get("/exportar/panel.xlsx")
+@roles_required(*MANAGERS)
+def export_dashboard() -> Response:
+    start, end = _period()
+    return _download(xlsx.panel_workbook(db.session, start, end), f"panel-horas_{start}_{end}.xlsx")
+
+
+@bp.get("/exportar/proyectos.xlsx")
+@roles_required(*MANAGERS)
+def export_projects() -> Response:
+    rows = compare.summaries(
+        db.session,
+        portfolio_id=_int(request.args.get("cartera")),
+        include_closed=request.args.get("cerrados", "1") == "1",
+        today=_today(),
+    )
+    return _download(xlsx.projects_workbook(rows), f"plan-contra-real_{_today()}.xlsx")
+
+
+@bp.get("/exportar/mio.xlsx")
+@roles_required(*PERSONAL)
+def export_mine() -> Response:
+    resource = _resource()
+    if resource is None:
+        abort(404)
+    start, end = _period()
+    content = xlsx.personal_workbook(db.session, resource.id, resource.display_name, start, end)
+    return _download(content, f"mi-informe_{start}_{end}.xlsx")
