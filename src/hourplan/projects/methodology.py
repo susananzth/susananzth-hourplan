@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from hourplan.projects.models import Methodology
+from hourplan.shared.translate import N_
 
 
 @dataclass(frozen=True)
@@ -17,24 +18,24 @@ class Profile:
 
 PROFILES: dict[str, Profile] = {
     Methodology.WATERFALL: Profile(
-        "Cascada", "Fases en secuencia con rondas de aprobación.", True, False, False, False
+        N_("Cascada"), N_("Fases en secuencia con rondas de aprobación."), True, False, False, False
     ),
     Methodology.SCRUM: Profile(
-        "Scrum", "Sprints, épicas e historias con tablero.", False, True, True, True
+        N_("Scrum"), N_("Sprints, épicas e historias con tablero."), False, True, True, True
     ),
     Methodology.KANBAN: Profile(
-        "Kanban", "Flujo continuo en un tablero por estado.", False, False, False, True
+        N_("Kanban"), N_("Flujo continuo en un tablero por estado."), False, False, False, True
     ),
     Methodology.HYBRID: Profile(
-        "Híbrido",
-        "Fases de cascada con sprints dentro de la construcción.",
+        N_("Híbrido"),
+        N_("Fases de cascada con sprints dentro de la construcción."),
         True,
         True,
         False,
         True,
     ),
     Methodology.STORIES: Profile(
-        "Historias", "Épicas e historias sin sprints fijos.", False, False, True, True
+        N_("Historias"), N_("Épicas e historias sin sprints fijos."), False, False, True, True
     ),
 }
 

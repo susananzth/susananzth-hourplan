@@ -1,13 +1,13 @@
 {% set tab = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface-raised hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600 aria-[current=page]:bg-surface-raised aria-[current=page]:text-ink" %}
-<nav aria-label="Vistas de planificación" class="mb-6 flex flex-wrap gap-1 border-b border-line pb-2">
-  <a href="{{ url_for('planning.gantt_projects') }}" class="{{ tab }}"{% if request.endpoint == 'planning.gantt_projects' %} aria-current="page"{% endif %}>Por proyecto</a>
+<nav aria-label="{{ _('Vistas de planificación') }}" class="mb-6 flex flex-wrap gap-1 border-b border-line pb-2">
+  <a href="{{ url_for('planning.gantt_projects') }}" class="{{ tab }}"{% if request.endpoint == 'planning.gantt_projects' %} aria-current="page"{% endif %}>{{ _("Por proyecto") }}</a>
   {% if current_user.has_role('admin', 'pm', 'lead', 'observer') %}
-  <a href="{{ url_for('planning.gantt_resources') }}" class="{{ tab }}"{% if request.endpoint == 'planning.gantt_resources' %} aria-current="page"{% endif %}>Por persona</a>
+  <a href="{{ url_for('planning.gantt_resources') }}" class="{{ tab }}"{% if request.endpoint == 'planning.gantt_resources' %} aria-current="page"{% endif %}>{{ _("Por persona") }}</a>
   {% endif %}
   {% if current_user.has_role('admin', 'pm', 'lead', 'developer') %}
-  <a href="{{ url_for('planning.gantt_personal') }}" class="{{ tab }}"{% if request.endpoint == 'planning.gantt_personal' %} aria-current="page"{% endif %}>Mi planificación</a>
+  <a href="{{ url_for('planning.gantt_personal') }}" class="{{ tab }}"{% if request.endpoint == 'planning.gantt_personal' %} aria-current="page"{% endif %}>{{ _("Mi planificación") }}</a>
   {% endif %}
   {% if current_user.has_role('admin', 'pm', 'lead', 'observer') %}
-  <a href="{{ url_for('planning.capacity') }}" class="{{ tab }}"{% if request.endpoint == 'planning.capacity' %} aria-current="page"{% endif %}>Capacidad</a>
+  <a href="{{ url_for('planning.capacity') }}" class="{{ tab }}"{% if request.endpoint == 'planning.capacity' %} aria-current="page"{% endif %}>{{ _("Capacidad") }}</a>
   {% endif %}
 </nav>

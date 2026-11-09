@@ -1,46 +1,46 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Editar proyecto' if project else 'Nuevo proyecto' }} · HourPlan{% endblock %}
+{% block title %}{{ _('Editar proyecto') if project else _('Nuevo proyecto') }} · HourPlan{% endblock %}
 {% block content %}
 {% set input = "rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
 {% set primary = "rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600" %}
 {% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
-{% macro pick(id, name, text, options, current, any="Sin definir") %}
+{% macro pick(id, name, text, options, current, any=none) %}
 <div><label for="{{ id }}" class="mb-1 block text-sm font-medium text-ink">{{ text }}</label>
-  <select id="{{ id }}" name="{{ name }}" class="block w-full {{ input }}"><option value="">{{ any }}</option>
+  <select id="{{ id }}" name="{{ name }}" class="block w-full {{ input }}"><option value="">{{ any if any is not none else _("Sin definir") }}</option>
     {% for o in options %}<option value="{{ o.id }}"{% if current == o.id %} selected{% endif %}>{{ o.name or o.display_name }}</option>{% endfor %}
   </select></div>
 {% endmacro %}
 {% macro val(key, attr) %}{{ form.get(key) if form else (project[attr] if project and project[attr] is not none else '') }}{% endmacro %}
 {% macro cur(key, attr) %}{% if form %}{{ form.get(key, '') | int(0) }}{% elif project and project[attr] %}{{ project[attr] }}{% else %}0{% endif %}{% endmacro %}
-<h1 class="mb-6 text-2xl font-semibold text-ink">{{ 'Editar proyecto' if project else 'Nuevo proyecto' }}</h1>
+<h1 class="mb-6 text-2xl font-semibold text-ink">{{ _('Editar proyecto') if project else _('Nuevo proyecto') }}</h1>
 <form method="post" class="grid gap-4 rounded-lg border border-line bg-surface-raised p-4 sm:grid-cols-2 lg:grid-cols-3">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div><label for="codigo" class="mb-1 block text-sm font-medium text-ink">Código</label>
+  <div><label for="codigo" class="mb-1 block text-sm font-medium text-ink">{{ _("Código") }}</label>
     <input id="codigo" name="codigo" required maxlength="40" value="{{ val('codigo', 'code') }}" class="block w-full {{ input }}"></div>
-  <div class="sm:col-span-1 lg:col-span-2"><label for="titulo" class="mb-1 block text-sm font-medium text-ink">Título</label>
+  <div class="sm:col-span-1 lg:col-span-2"><label for="titulo" class="mb-1 block text-sm font-medium text-ink">{{ _("Título") }}</label>
     <input id="titulo" name="titulo" required maxlength="200" value="{{ val('titulo', 'title') }}" class="block w-full {{ input }}"></div>
-  {{ pick('cartera', 'cartera', 'Cartera', portfolios, cur('cartera', 'portfolio_id') | int) }}
-  {{ pick('tipo', 'tipo', 'Tipo de requerimiento', requirement_types, cur('tipo', 'requirement_type_id') | int) }}
-  {{ pick('prioridad', 'prioridad', 'Prioridad', priorities, cur('prioridad', 'priority_id') | int) }}
-  {{ pick('estado', 'estado', 'Estado', statuses, cur('estado', 'status_id') | int) }}
-  {% if not project %}{{ pick('plantilla', 'plantilla', 'Plantilla de fases', templates, cur('plantilla', 'phase_template_id') | int, 'La predeterminada') }}{% endif %}
+  {{ pick('cartera', 'cartera', _('Cartera'), portfolios, cur('cartera', 'portfolio_id') | int) }}
+  {{ pick('tipo', 'tipo', _('Tipo de requerimiento'), requirement_types, cur('tipo', 'requirement_type_id') | int) }}
+  {{ pick('prioridad', 'prioridad', _('Prioridad'), priorities, cur('prioridad', 'priority_id') | int) }}
+  {{ pick('estado', 'estado', _('Estado'), statuses, cur('estado', 'status_id') | int) }}
+  {% if not project %}{{ pick('plantilla', 'plantilla', _('Plantilla de fases'), templates, cur('plantilla', 'phase_template_id') | int, _('La predeterminada')) }}{% endif %}
   <div><label for="metodologia" class="mb-1 block text-sm font-medium text-ink">{{ _("Metodología") }}</label>
     <select id="metodologia" name="metodologia" class="block w-full {{ input }}">
       {% set chosen = form.get('metodologia') if form else (project.methodology if project else 'waterfall') %}
       {% for key, p in profiles.items() %}<option value="{{ key }}"{% if chosen == key %} selected{% endif %}>{{ _(p.label) }}</option>{% endfor %}
     </select></div>
-  {{ pick('padre', 'padre', 'Proyecto padre (subproyecto)', parents, cur('padre', 'parent_id') | int, 'Ninguno') }}
-  {{ pick('gerente', 'gerente', 'Gerente de proyecto', users, cur('gerente', 'manager_id') | int) }}
-  {{ pick('lider', 'lider', 'Líder técnico', users, cur('lider', 'lead_id') | int) }}
-  <div><label for="esfuerzo" class="mb-1 block text-sm font-medium text-ink">Esfuerzo base (h)</label>
+  {{ pick('padre', 'padre', _('Proyecto padre (subproyecto)'), parents, cur('padre', 'parent_id') | int, _('Ninguno')) }}
+  {{ pick('gerente', 'gerente', _('Gerente de proyecto'), users, cur('gerente', 'manager_id') | int) }}
+  {{ pick('lider', 'lider', _('Líder técnico'), users, cur('lider', 'lead_id') | int) }}
+  <div><label for="esfuerzo" class="mb-1 block text-sm font-medium text-ink">{{ _("Esfuerzo base (h)") }}</label>
     <input id="esfuerzo" name="esfuerzo" inputmode="decimal" value="{{ val('esfuerzo', 'base_effort_hours') }}" class="block w-full {{ input }}"></div>
-  <div><label for="contingencia" class="mb-1 block text-sm font-medium text-ink">Contingencia (h)</label>
+  <div><label for="contingencia" class="mb-1 block text-sm font-medium text-ink">{{ _("Contingencia (h)") }}</label>
     <input id="contingencia" name="contingencia" inputmode="decimal" value="{{ val('contingencia', 'contingency_hours') }}" class="block w-full {{ input }}"></div>
-  <div class="sm:col-span-2 lg:col-span-3"><label for="notas" class="mb-1 block text-sm font-medium text-ink">Notas</label>
+  <div class="sm:col-span-2 lg:col-span-3"><label for="notas" class="mb-1 block text-sm font-medium text-ink">{{ _("Notas") }}</label>
     <textarea id="notas" name="notas" rows="3" maxlength="5000" class="block w-full {{ input }}">{{ val('notas', 'notes') }}</textarea></div>
   <div class="flex gap-3 sm:col-span-2 lg:col-span-3">
-    <button type="submit" class="{{ primary }}">Guardar</button>
-    <a href="{{ url_for('projects.detail', project_id=project.id) if project else url_for('projects.index') }}" class="{{ quiet }}">Cancelar</a>
+    <button type="submit" class="{{ primary }}">{{ _("Guardar") }}</button>
+    <a href="{{ url_for('projects.detail', project_id=project.id) if project else url_for('projects.index') }}" class="{{ quiet }}">{{ _("Cancelar") }}</a>
   </div>
 </form>
 {% endblock %}

@@ -1,27 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Dictado por voz · HourPlan{% endblock %}
+{% block title %}{{ _("Dictado por voz") }} · HourPlan{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-semibold text-ink">Dictado por voz</h1>
-<p class="mt-1 text-sm text-ink-muted">Cuenta tus horas en voz alta (hasta {{ max_seconds // 60 }} minutos). El audio se transcribe en el servidor del área y se borra al terminar; siempre verás un borrador para corregir antes de guardar.</p>
+<h1 class="text-2xl font-semibold text-ink">{{ _("Dictado por voz") }}</h1>
+<p class="mt-1 text-sm text-ink-muted">{{ _("Cuenta tus horas en voz alta (hasta %s minutos). El audio se transcribe en el servidor del área y se borra al terminar; siempre verás un borrador para corregir antes de guardar.") | format(max_seconds // 60) }}</p>
 
 <div data-voice-recorder data-upload-url="{{ url_for('voice.upload') }}" data-max-seconds="{{ max_seconds }}" class="mt-6 rounded-lg border border-line bg-surface-raised p-4">
   <div class="flex flex-wrap items-center gap-3">
-    <button type="button" data-voice-start class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Empezar a grabar</button>
-    <button type="button" data-voice-stop hidden class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Terminar y enviar</button>
-    <button type="button" data-voice-cancel hidden class="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Cancelar</button>
+    <button type="button" data-voice-start class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">{{ _("Empezar a grabar") }}</button>
+    <button type="button" data-voice-stop hidden class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">{{ _("Terminar y enviar") }}</button>
+    <button type="button" data-voice-cancel hidden class="rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">{{ _("Cancelar") }}</button>
     <time data-voice-clock class="tabular-nums text-ink">00:00</time>
   </div>
   <p data-voice-message role="status" aria-live="polite" class="mt-3 text-sm text-ink-muted"></p>
-  <p class="mt-3 text-xs text-ink-muted">Ejemplo: «Ayer dos horas y media en PJ-00001, pruebas del módulo de pagos. Luego una hora de soporte en PJ-00002».</p>
+  <p class="mt-3 text-xs text-ink-muted">{{ _("Ejemplo: «Ayer dos horas y media en PJ-00001, pruebas del módulo de pagos. Luego una hora de soporte en PJ-00002».") }}</p>
 </div>
 
-<h2 class="mt-8 text-lg font-semibold text-ink">Dictados recientes</h2>
-{% if not recent %}<p class="mt-2 text-sm text-ink-muted">No hay dictados pendientes.</p>{% endif %}
+<h2 class="mt-8 text-lg font-semibold text-ink">{{ _("Dictados recientes") }}</h2>
+{% if not recent %}<p class="mt-2 text-sm text-ink-muted">{{ _("No hay dictados pendientes.") }}</p>{% endif %}
 <ul class="mt-3 space-y-2">
 {% for d in recent %}
   <li class="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface-raised px-4 py-2 text-sm">
-    <a href="{{ url_for('voice.show', dictation_id=d.id) }}" class="font-medium text-brand-700 dark:text-brand-300">Dictado del {{ d.created_at.strftime('%d/%m/%Y %H:%M') }}</a>
-    <span class="text-ink-muted">{{ {'queued': 'En cola', 'processing': 'Transcribiendo', 'ready': 'Listo para revisar', 'failed': 'Falló'}[d.status] }}</span>
+    <a href="{{ url_for('voice.show', dictation_id=d.id) }}" class="font-medium text-brand-700 dark:text-brand-300">{{ _("Dictado del") }} {{ d.created_at.strftime('%d/%m/%Y %H:%M') }}</a>
+    <span class="text-ink-muted">{{ {'queued': _('En cola'), 'processing': _('Transcribiendo'), 'ready': _('Listo para revisar'), 'failed': _('Falló')}[d.status] }}</span>
   </li>
 {% endfor %}
 </ul>

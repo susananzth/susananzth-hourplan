@@ -17,6 +17,7 @@ from hourplan.catalogs.models import Application, CatalogItem, CatalogKind
 from hourplan.db import transaction
 from hourplan.projects.models import Project, ProjectPhase
 from hourplan.shared.labels import validation_message
+from hourplan.shared.translate import _
 from hourplan.timesheet import services as timesheet
 from hourplan.timesheet.models import EntrySource
 from hourplan.timesheet.services import EntryData
@@ -63,7 +64,7 @@ def wav_duration(data: bytes, max_seconds: float) -> float:
     if seconds < 0.5:
         raise VoiceError("El audio es demasiado corto.")
     if seconds > max_seconds + 5:
-        raise VoiceError(f"El dictado puede durar hasta {int(max_seconds // 60)} minutos.")
+        raise VoiceError(_("El dictado puede durar hasta %s minutos.") % (int(max_seconds // 60),))
     return float(round(seconds, 2))
 
 
@@ -254,7 +255,13 @@ def build_entries(session: Session, rows: list[dict[str, Any]]) -> list[EntryDat
             )
         except (ValidationError, ValueError, VoiceError) as err:
             message = validation_message(err) if isinstance(err, ValidationError) else str(err)
-            raise VoiceError(f"Línea {number}: {message}") from err
+            raise VoiceError(
+                _("Línea %s: %s")
+                % (
+                    number,
+                    message,
+                )
+            ) from err
         if data.project_phase_id is not None:
             phase = session.get(ProjectPhase, data.project_phase_id)
             if phase is None or phase.project_id != data.project_id:

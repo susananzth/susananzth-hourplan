@@ -14,6 +14,7 @@ from hourplan.auth.permissions import roles_required
 from hourplan.auth.roles import Role
 from hourplan.extensions import db
 from hourplan.resources.models import Resource
+from hourplan.shared.i18n import N_, _, translated
 from hourplan.shared.labels import label, validation_message
 from hourplan.timesheet import absences, bank
 from hourplan.timesheet.models import AbsenceType
@@ -23,13 +24,17 @@ bp = Blueprint("absences", __name__, url_prefix="/ausencias", template_folder="t
 REQUESTERS = (Role.ADMIN, Role.PM, Role.LEAD, Role.DEVELOPER)
 DECIDERS = (Role.ADMIN, Role.PM, Role.LEAD)
 TYPE_LABELS = {
-    AbsenceType.VACATION: "Vacaciones",
-    AbsenceType.SICK_LEAVE: "Licencia médica",
-    AbsenceType.PERMISSION: "Permiso",
-    AbsenceType.COMPENSATION: "Día compensado con el banco de horas",
-    AbsenceType.OTHER: "Otra",
+    AbsenceType.VACATION: N_("Vacaciones"),
+    AbsenceType.SICK_LEAVE: N_("Licencia médica"),
+    AbsenceType.PERMISSION: N_("Permiso"),
+    AbsenceType.COMPENSATION: N_("Día compensado con el banco de horas"),
+    AbsenceType.OTHER: N_("Otra"),
 }
-STATUS_LABELS = {"pending": "Pendiente", "approved": "Aprobada", "rejected": "Rechazada"}
+STATUS_LABELS = {
+    "pending": N_("Pendiente"),
+    "approved": N_("Aprobada"),
+    "rejected": N_("Rechazada"),
+}
 
 
 def _today() -> date:
@@ -49,7 +54,9 @@ def _parse_hours(raw: str) -> Decimal | None:
     try:
         return Decimal(raw)
     except InvalidOperation:
-        raise ValueError(f"{label('hours_per_day')}: escribe un número, por ejemplo 4,5.") from None
+        raise ValueError(
+            _("%s: escribe un número, por ejemplo 4,5.") % (label("hours_per_day"),)
+        ) from None
 
 
 def _error(err: Exception) -> str:
@@ -68,8 +75,8 @@ def index() -> str:
         "timesheet/absences.html",
         mine=absences.absences_of(db.session, resource.id, since=_today()),
         pending=absences.pending_requests(db.session) if current_user.has_role(*DECIDERS) else [],
-        types=TYPE_LABELS,
-        statuses=STATUS_LABELS,
+        types=translated(TYPE_LABELS),
+        statuses=translated(STATUS_LABELS),
         today=_today(),
     )
 
@@ -137,5 +144,5 @@ def decide(absence_id: int) -> Response:
         db.session.rollback()
         flash(_error(err), "error")
     else:
-        flash("Solicitud aprobada." if approve else "Solicitud rechazada.", "info")
+        flash(_("Solicitud aprobada.") if approve else _("Solicitud rechazada."), "info")
     return redirect(url_for("absences.index"))

@@ -25,6 +25,7 @@ from hourplan.projects.models import (
     PhaseTemplate,
     ProjectPhase,
 )
+from hourplan.shared.i18n import N_, _, translated
 from hourplan.shared.labels import label, validation_message
 
 bp = Blueprint("projects", __name__, url_prefix="/proyectos", template_folder="templates")
@@ -32,15 +33,15 @@ bp = Blueprint("projects", __name__, url_prefix="/proyectos", template_folder="t
 VIEWERS = (Role.ADMIN, Role.PM, Role.LEAD, Role.DEVELOPER, Role.OBSERVER)
 EDITORS = (Role.ADMIN, Role.PM, Role.LEAD)
 PHASE_STATUS_LABELS = {
-    PhaseStatus.PENDING: "Pendiente",
-    PhaseStatus.IN_PROGRESS: "En curso",
-    PhaseStatus.DONE: "Terminada",
-    PhaseStatus.SKIPPED: "Omitida",
+    PhaseStatus.PENDING: N_("Pendiente"),
+    PhaseStatus.IN_PROGRESS: N_("En curso"),
+    PhaseStatus.DONE: N_("Terminada"),
+    PhaseStatus.SKIPPED: N_("Omitida"),
 }
 OUTCOME_LABELS = {
-    CycleOutcome.PENDING: "Pendiente",
-    CycleOutcome.RETURNED: "Observada",
-    CycleOutcome.APPROVED: "Aprobada",
+    CycleOutcome.PENDING: N_("Pendiente"),
+    CycleOutcome.RETURNED: N_("Observada"),
+    CycleOutcome.APPROVED: N_("Aprobada"),
 }
 
 
@@ -60,7 +61,9 @@ def _hours(raw: str | None, field: str) -> Decimal | None:
     try:
         return Decimal(raw)
     except InvalidOperation:
-        raise ValueError(f"{label(field)}: escribe un número, por ejemplo 40 o 12,5.") from None
+        raise ValueError(
+            _("%s: escribe un número, por ejemplo 40 o 12,5.") % (label(field),)
+        ) from None
 
 
 def _day(raw: str | None, field: str) -> date | None:
@@ -70,7 +73,7 @@ def _day(raw: str | None, field: str) -> date | None:
     try:
         return date.fromisoformat(raw)
     except ValueError:
-        raise ValueError(f"{label(field)}: la fecha no es válida.") from None
+        raise ValueError(_("%s: la fecha no es válida.") % (label(field),)) from None
 
 
 def _error(err: Exception) -> str:
@@ -181,11 +184,11 @@ def detail(project_id: int) -> str:
         items=items,
         warning=services.duration_warning(db.session, project, _today()),
         span=services.planned_span(project),
-        phase_statuses=PHASE_STATUS_LABELS,
+        phase_statuses=translated(PHASE_STATUS_LABELS),
         gated=[p for p in project.phases if cycles.is_gated(p)],
         round_name=cycles.round_name,
         returned=cycles.returned_count(db.session, project.id),
-        outcomes=OUTCOME_LABELS,
+        outcomes=translated(OUTCOME_LABELS),
         categories=catalogs.list_items(db.session, CatalogKind.REWORK_CATEGORY),
         reasons=catalogs.list_items(db.session, CatalogKind.REWORK_REASON),
         items_all={
@@ -254,7 +257,7 @@ def submit_round(project_id: int, phase_id: int) -> Response:
     try:
         day = _day(request.form.get("fecha"), "submitted_on")
         if day is None:
-            raise ValueError(f"{label('submitted_on')}: indica la fecha.")
+            raise ValueError(_("%s: indica la fecha.") % (label("submitted_on"),))
         cycles.submit(db.session, phase_id, day, actor_id=int(current_user.id))
     except ValueError as err:
         db.session.rollback()
@@ -274,7 +277,7 @@ def decide_round(project_id: int, cycle_id: int) -> Response:
     try:
         day = _day(form.get("fecha"), "resolved_on")
         if day is None:
-            raise ValueError(f"{label('resolved_on')}: indica la fecha.")
+            raise ValueError(_("%s: indica la fecha.") % (label("resolved_on"),))
         data = cycles.Decision(
             outcome=form.get("resultado", ""),  # type: ignore[arg-type]
             resolved_on=day,

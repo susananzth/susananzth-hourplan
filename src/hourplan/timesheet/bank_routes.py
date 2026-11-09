@@ -12,6 +12,7 @@ from hourplan.auth.permissions import roles_required
 from hourplan.auth.roles import Role
 from hourplan.extensions import db
 from hourplan.resources.models import Resource
+from hourplan.shared.i18n import N_, _, translated
 from hourplan.timesheet import bank
 from hourplan.timesheet.models import BankReason, OvertimeKind
 
@@ -20,13 +21,16 @@ bp = Blueprint("bank", __name__, url_prefix="/banco", template_folder="templates
 MEMBERS = (Role.ADMIN, Role.PM, Role.LEAD, Role.DEVELOPER)
 DECIDERS = (Role.ADMIN, Role.PM, Role.LEAD)
 REASONS = {
-    BankReason.OVERTIME.value: "Horas extra",
-    BankReason.CONTINGENCY.value: "Contingencia no planificada",
-    BankReason.COMPENSATION.value: "Día compensado",
-    BankReason.ADJUSTMENT.value: "Ajuste",
+    BankReason.OVERTIME.value: N_("Horas extra"),
+    BankReason.CONTINGENCY.value: N_("Contingencia no planificada"),
+    BankReason.COMPENSATION.value: N_("Día compensado"),
+    BankReason.ADJUSTMENT.value: N_("Ajuste"),
 }
-KINDS = {OvertimeKind.VOLUNTARY.value: "Voluntarias", OvertimeKind.REQUIRED.value: "Exigidas"}
-STATUSES = {"pending": "Pendiente", "approved": "Aprobado", "rejected": "Rechazado"}
+KINDS = {
+    OvertimeKind.VOLUNTARY.value: N_("Voluntarias"),
+    OvertimeKind.REQUIRED.value: N_("Exigidas"),
+}
+STATUSES = {"pending": N_("Pendiente"), "approved": N_("Aprobado"), "rejected": N_("Rechazado")}
 
 
 def _today() -> date:
@@ -55,9 +59,9 @@ def index() -> str:
         waiting=bank.pending_hours(db.session, resource.id),
         moves=bank.movements(db.session, resource.id),
         pending=bank.pending_movements(db.session) if current_user.has_role(*DECIDERS) else [],
-        reasons=REASONS,
-        kinds=KINDS,
-        statuses=STATUSES,
+        reasons=translated(REASONS),
+        kinds=translated(KINDS),
+        statuses=translated(STATUSES),
         today=_today(),
     )
 
@@ -113,5 +117,5 @@ def decide(movement_id: int) -> Response:
         db.session.rollback()
         flash(_error(err), "error")
     else:
-        flash("Movimiento aprobado." if approve else "Movimiento rechazado.", "info")
+        flash(_("Movimiento aprobado.") if approve else _("Movimiento rechazado."), "info")
     return redirect(url_for("bank.index"))

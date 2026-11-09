@@ -13,6 +13,7 @@ from hourplan.audit.models import AuditAction
 from hourplan.db import transaction
 from hourplan.policies.models import EvaluationPolicy, Holiday, VersionedPolicy, WorkPolicy
 from hourplan.shared.labels import label
+from hourplan.shared.translate import _
 
 
 class PolicyError(ValueError):
@@ -40,13 +41,19 @@ class EvaluationPolicyData(_PolicyData):
     def _red_above_tolerance(self) -> Self:
         if self.hours_red_pct < self.hours_tolerance_pct:
             raise ValueError(
-                f"{label('hours_red_pct')} no puede ser menor que "
-                f"{label('hours_tolerance_pct').lower()}."
+                _("%s no puede ser menor que %s.")
+                % (
+                    label("hours_red_pct"),
+                    label("hours_tolerance_pct").lower(),
+                )
             )
         if self.dates_red_pct < self.dates_tolerance_pct:
             raise ValueError(
-                f"{label('dates_red_pct')} no puede ser menor que "
-                f"{label('dates_tolerance_pct').lower()}."
+                _("%s no puede ser menor que %s.")
+                % (
+                    label("dates_red_pct"),
+                    label("dates_tolerance_pct").lower(),
+                )
             )
         return self
 
@@ -61,8 +68,11 @@ class WorkPolicyData(_PolicyData):
     def _warning_above_standard(self) -> Self:
         if self.daily_warning_hours < self.standard_daily_hours:
             raise ValueError(
-                f"{label('daily_warning_hours')} no puede ser menor que "
-                f"{label('standard_daily_hours').lower()}."
+                _("%s no puede ser menor que %s.")
+                % (
+                    label("daily_warning_hours"),
+                    label("standard_daily_hours").lower(),
+                )
             )
         return self
 

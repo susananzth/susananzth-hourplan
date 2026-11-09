@@ -22,15 +22,16 @@ from hourplan.catalogs.models import CatalogItem
 from hourplan.planning.models import PlanAllocation, PlanVersion
 from hourplan.planning.services import capacity, current_allocations, current_version_ids
 from hourplan.projects.models import Project, ProjectKind, ProjectPhase
+from hourplan.shared.translate import N_, _
 from hourplan.timesheet.models import Absence, ApprovalStatus, TimeEntry
 
 KIND_LABELS = {
-    "plan": "Planificado",
-    "actual": "Real (horas registradas)",
-    "bucket": "Cubo de actividad",
-    "absence": "Ausencia",
-    "pending": "Ausencia pendiente",
-    "overload": "Semana sobreasignada",
+    "plan": N_("Planificado"),
+    "actual": N_("Real (horas registradas)"),
+    "bucket": N_("Cubo de actividad"),
+    "absence": N_("Ausencia"),
+    "pending": N_("Ausencia pendiente"),
+    "overload": N_("Semana sobreasignada"),
 }
 # Consecutive logged days closer than this become a single "actual" bar (bridges weekends).
 _RUN_GAP_DAYS = 3
@@ -159,7 +160,7 @@ def _absence_bar(absence: Absence) -> Bar:
     return Bar(
         absence.start_on,
         absence.end_on,
-        "Ausencia (pendiente)" if pending else "Ausencia",
+        _("Ausencia (pendiente)") if pending else _("Ausencia"),
         "pending" if pending else "absence",
     )
 
@@ -237,10 +238,10 @@ def project_rows(
         span = (min(starts), max(ends)) if starts and ends else plan_spans.get(project.id)
         bars = []
         if span:
-            bars.append(Bar(span[0], span[1], "Plan", "plan", plan_hours.get(project.id)))
+            bars.append(Bar(span[0], span[1], _("Plan"), "plan", plan_hours.get(project.id)))
         if project.id in actual_project:
             a, b, hours = actual_project[project.id]
-            bars.append(Bar(a, b, "Real", "actual", hours))
+            bars.append(Bar(a, b, _("Real"), "actual", hours))
         head = Row(f"{project.code} · {project.title}", stack(bars), 0, project.id)
         if any(tl.overlaps(b) for b in head.bars) or phase_rows:
             rows.append(head)
@@ -298,7 +299,7 @@ def resource_rows(
             days = [d for d in load.available if a <= d <= b]
             free = load.free(days)
             if days and free < 0:
-                markers.append(Bar(a, b, f"Sobreasignada {-free:.1f} h", "overload", -free))
+                markers.append(Bar(a, b, _("Sobreasignada %.1f h") % -free, "overload", -free))
         rows.append(Row(load.resource.display_name, stack(bars[load.resource.id]), markers=markers))
     return rows
 
@@ -334,7 +335,7 @@ def personal_rows(session: Session, tl: Timeline, resource_id: int) -> list[Row]
             key = ("project", version_projects.get(allocation.plan_version_id or 0, 0))
             kind = "plan"
         groups[key].append(
-            Bar(allocation.start_on, allocation.end_on, "Plan", kind, allocation.hours)
+            Bar(allocation.start_on, allocation.end_on, _("Plan"), kind, allocation.hours)
         )
 
     logged: dict[tuple[str, int], dict[date, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
@@ -351,7 +352,7 @@ def personal_rows(session: Session, tl: Timeline, resource_id: int) -> list[Row]
         )
         logged[key][entry.work_date] += entry.hours
     for key, days in logged.items():
-        groups[key].extend(_runs(days, "Registrado"))
+        groups[key].extend(_runs(days, _("Registrado")))
 
     project_names = {
         p.id: f"{p.code} · {p.title}"
@@ -364,7 +365,7 @@ def personal_rows(session: Session, tl: Timeline, resource_id: int) -> list[Row]
         Row(
             project_names.get(ident, "Proyecto")
             if kind == "project"
-            else f"Actividad: {buckets.get(ident, 'Actividad')}",
+            else _("Actividad: %s") % buckets.get(ident, _("Actividad")),
             stack(bars),
             project_id=ident if kind == "project" else None,
         )
@@ -373,7 +374,7 @@ def personal_rows(session: Session, tl: Timeline, resource_id: int) -> list[Row]
     rows.sort(key=lambda r: (r.project_id is None, r.label))
     absences = [_absence_bar(a) for a in _absence_bars(session, tl, [resource_id])]
     if absences:
-        rows.append(Row("Ausencias", stack(absences)))
+        rows.append(Row(_("Ausencias"), stack(absences)))
     return rows
 
 
@@ -395,10 +396,10 @@ def to_workbook(title: str, tl: Timeline, rows: Sequence[Row]) -> bytes:
     book = Workbook()
     book.remove(book.worksheets[0])
     sheet = book.create_sheet("Gantt")
-    sheet.append([title, f"Del {tl.start:%d/%m/%Y} al {tl.end:%d/%m/%Y}"])
+    sheet.append([title, _("Del %s al %s") % (f"{tl.start:%d/%m/%Y}", f"{tl.end:%d/%m/%Y}")])
     sheet["A1"].font = Font(bold=True, size=13)
     weeks = tl.weeks()
-    header = ["Fila", "Tipo", "Detalle", "Desde", "Hasta", "Horas"]
+    header = [_("Fila"), _("Tipo"), _("Detalle"), _("Desde"), _("Hasta"), _("Horas")]
     sheet.append(header + [a.strftime("%d/%m") for a, _ in weeks])
     for cell in sheet[2]:
         cell.font = Font(bold=True)

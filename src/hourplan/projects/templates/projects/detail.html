@@ -6,15 +6,15 @@
 {% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
 <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
   <h1 class="text-2xl font-semibold text-ink">{{ project.code }} · {{ project.title }}</h1>
-  <div class="flex gap-2"><a href="{{ url_for('projects.index') }}" class="{{ quiet }}">Volver</a>
-    <a href="{{ url_for('planning.project_plan', project_id=project.id) }}" class="{{ quiet }}">Plan y asignaciones</a>
-    {% if current_user.has_role('admin', 'pm', 'lead') %}<a href="{{ url_for('reports.project', project_id=project.id) }}" class="{{ quiet }}">Plan contra real</a>{% endif %}
-    {% if can_edit %}<a href="{{ url_for('projects.edit', project_id=project.id) }}" class="{{ primary }}">Editar</a>{% endif %}</div>
+  <div class="flex gap-2"><a href="{{ url_for('projects.index') }}" class="{{ quiet }}">{{ _("Volver") }}</a>
+    <a href="{{ url_for('planning.project_plan', project_id=project.id) }}" class="{{ quiet }}">{{ _("Plan y asignaciones") }}</a>
+    {% if current_user.has_role('admin', 'pm', 'lead') %}<a href="{{ url_for('reports.project', project_id=project.id) }}" class="{{ quiet }}">{{ _("Plan contra real") }}</a>{% endif %}
+    {% if can_edit %}<a href="{{ url_for('projects.edit', project_id=project.id) }}" class="{{ primary }}">{{ _("Editar") }}</a>{% endif %}</div>
 </div>
 <p class="mb-4 text-sm text-ink-muted">
-  {{ items.get(project.status_id, 'Sin estado') }} · prioridad {{ items.get(project.priority_id, 'sin definir') | lower }}
-  · esfuerzo base {{ project.base_effort_hours or '—' }} h · contingencia {{ project.contingency_hours or '—' }} h
-  {% if span %}· plan del {{ span[0].strftime('%d/%m/%Y') }} al {{ span[1].strftime('%d/%m/%Y') }}{% endif %}
+  {{ items.get(project.status_id, _('Sin estado')) }} · {{ _("prioridad") }} {{ items.get(project.priority_id, _('sin definir')) | lower }}
+  · {{ _("esfuerzo base") }} {{ project.base_effort_hours or '—' }} {{ _("h · contingencia") }} {{ project.contingency_hours or '—' }} h
+  {% if span %}· {{ _("plan del") }} {{ span[0].strftime('%d/%m/%Y') }} {{ _("al") }} {{ span[1].strftime('%d/%m/%Y') }}{% endif %}
 </p>
 {% if warning %}<p role="status" class="mb-4 rounded-md border border-line-strong bg-surface-raised p-3 text-sm text-ink">{{ warning }}</p>{% endif %}
 {% if project.notes %}<p class="mb-6 whitespace-pre-line text-sm text-ink">{{ project.notes }}</p>{% endif %}
@@ -22,17 +22,17 @@
 <p class="mb-4 text-sm text-ink-muted">{{ _("Metodología") }}: <strong class="font-medium text-ink">{{ _(profile.label) }}</strong> · {{ _(profile.summary) }}
   {% if agile and project.kind == 'project' %}· <a href="{{ url_for('agile.board', project_id=project.id) }}" class="font-medium text-brand-700 underline dark:text-brand-300">{{ _("Trabajo ágil") }}</a>{% endif %}</p>
 {% if profile.phases %}
-<h2 class="mb-3 text-lg font-semibold text-ink">Fases</h2>
+<h2 class="mb-3 text-lg font-semibold text-ink">{{ _("Fases") }}</h2>
 <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
-  <table aria-label="Fases del proyecto" class="w-full text-left text-sm">
+  <table aria-label="{{ _('Fases del proyecto') }}" class="w-full text-left text-sm">
     <thead class="border-b border-line text-ink-muted"><tr>
-      <th scope="col" class="px-4 py-2 font-medium">Fase</th>
-      <th scope="col" class="px-4 py-2 font-medium">Estado</th>
-      <th scope="col" class="px-4 py-2 font-medium">Inicio previsto</th>
-      <th scope="col" class="px-4 py-2 font-medium">Fin previsto</th>
-      <th scope="col" class="px-4 py-2 font-medium">Esfuerzo (h)</th>
-      <th scope="col" class="px-4 py-2 font-medium">Contingencia (h)</th>
-      {% if can_edit %}<th scope="col" class="px-4 py-2"><span class="sr-only">Guardar</span></th>{% endif %}
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Fase") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Estado") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Inicio previsto") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Fin previsto") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Esfuerzo (h)") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Contingencia (h)") }}</th>
+      {% if can_edit %}<th scope="col" class="px-4 py-2"><span class="sr-only">{{ _("Guardar") }}</span></th>{% endif %}
     </tr></thead>
     <tbody>
       {% for ph in project.phases %}
@@ -41,14 +41,14 @@
       <tr class="border-b border-line last:border-0">
         <th scope="row" class="px-4 py-2 font-medium text-ink">{{ ph.name }}</th>
         <td class="px-4 py-2"><form id="{{ f }}" method="post" action="{{ url_for('projects.update_phase', project_id=project.id, phase_id=ph.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
-          <select form="{{ f }}" name="estado" aria-label="Estado de {{ ph.name }}" class="{{ input }}">
+          <select form="{{ f }}" name="estado" aria-label="{{ _('Estado de %s') | format(ph.name) }}" class="{{ input }}">
             {% for key, text in phase_statuses.items() %}<option value="{{ key.value }}"{% if ph.status == key.value %} selected{% endif %}>{{ text }}</option>{% endfor %}
           </select></td>
-        <td class="px-4 py-2"><input form="{{ f }}" type="date" name="inicio" aria-label="Inicio previsto de {{ ph.name }}" value="{{ ph.planned_start.isoformat() if ph.planned_start else '' }}" class="{{ input }}"></td>
-        <td class="px-4 py-2"><input form="{{ f }}" type="date" name="fin" aria-label="Fin previsto de {{ ph.name }}" value="{{ ph.planned_end.isoformat() if ph.planned_end else '' }}" class="{{ input }}"></td>
-        <td class="px-4 py-2"><input form="{{ f }}" name="esfuerzo" inputmode="decimal" aria-label="Esfuerzo de {{ ph.name }}" value="{{ ph.base_effort_hours if ph.base_effort_hours is not none else '' }}" class="w-24 {{ input }}"></td>
-        <td class="px-4 py-2"><input form="{{ f }}" name="contingencia" inputmode="decimal" aria-label="Contingencia de {{ ph.name }}" value="{{ ph.contingency_hours if ph.contingency_hours is not none else '' }}" class="w-24 {{ input }}"></td>
-        <td class="px-4 py-2 text-right"><button form="{{ f }}" type="submit" class="{{ quiet }}">Guardar</button></td>
+        <td class="px-4 py-2"><input form="{{ f }}" type="date" name="inicio" aria-label="{{ _('Inicio previsto de %s') | format(ph.name) }}" value="{{ ph.planned_start.isoformat() if ph.planned_start else '' }}" class="{{ input }}"></td>
+        <td class="px-4 py-2"><input form="{{ f }}" type="date" name="fin" aria-label="{{ _('Fin previsto de %s') | format(ph.name) }}" value="{{ ph.planned_end.isoformat() if ph.planned_end else '' }}" class="{{ input }}"></td>
+        <td class="px-4 py-2"><input form="{{ f }}" name="esfuerzo" inputmode="decimal" aria-label="{{ _('Esfuerzo de %s') | format(ph.name) }}" value="{{ ph.base_effort_hours if ph.base_effort_hours is not none else '' }}" class="w-24 {{ input }}"></td>
+        <td class="px-4 py-2"><input form="{{ f }}" name="contingencia" inputmode="decimal" aria-label="{{ _('Contingencia de %s') | format(ph.name) }}" value="{{ ph.contingency_hours if ph.contingency_hours is not none else '' }}" class="w-24 {{ input }}"></td>
+        <td class="px-4 py-2 text-right"><button form="{{ f }}" type="submit" class="{{ quiet }}">{{ _("Guardar") }}</button></td>
       </tr>
       {% else %}
       <tr class="border-b border-line last:border-0">
@@ -61,15 +61,15 @@
       </tr>
       {% endif %}
       {% else %}
-      <tr><td colspan="7" class="px-4 py-6 text-center text-ink-muted">Este proyecto no tiene fases.</td></tr>
+      <tr><td colspan="7" class="px-4 py-6 text-center text-ink-muted">{{ _("Este proyecto no tiene fases.") }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 {% if gated %}
 <section id="rondas" aria-labelledby="rondas-titulo" class="mt-10">
-  <h2 id="rondas-titulo" class="mb-1 text-lg font-semibold text-ink">Rondas de verificación y aprobación</h2>
-  <p class="mb-4 text-sm text-ink-muted">Cada ronda observada devuelve el trabajo a construcción y cuenta como rework. Rondas observadas en el proyecto: {{ returned }}.</p>
+  <h2 id="rondas-titulo" class="mb-1 text-lg font-semibold text-ink">{{ _("Rondas de verificación y aprobación") }}</h2>
+  <p class="mb-4 text-sm text-ink-muted">{{ _("Cada ronda observada devuelve el trabajo a construcción y cuenta como rework. Rondas observadas en el proyecto") }}: {{ returned }}.</p>
   {% for ph in gated %}
   {% set pending = ph.cycles | selectattr('outcome', 'equalto', 'pending') | first %}
   {% set approved = ph.cycles | selectattr('outcome', 'equalto', 'approved') | first %}
@@ -78,38 +78,38 @@
     {% if ph.cycles %}
     <ul class="mb-3 space-y-1 text-sm text-ink">
       {% for c in ph.cycles %}
-      <li><strong>{{ round_name(ph, c) }}</strong> · enviada {{ c.submitted_on.strftime('%d/%m/%Y') }}
-        {% if c.resolved_on %}· resuelta {{ c.resolved_on.strftime('%d/%m/%Y') }}{% endif %} · {{ outcomes[c.outcome] }}{% if c.is_estimated %} (estimada){% endif %}
+      <li><strong>{{ round_name(ph, c) }}</strong> · {{ _("enviada") }} {{ c.submitted_on.strftime('%d/%m/%Y') }}
+        {% if c.resolved_on %}· {{ _("resuelta") }} {{ c.resolved_on.strftime('%d/%m/%Y') }}{% endif %} · {{ outcomes[c.outcome] }}{% if c.is_estimated %} {{ _("(estimada)") }}{% endif %}
         {% if c.rework_category_id %}· {{ items_all.get(c.rework_category_id) }}{% if c.rework_reason_id %} / {{ items_all.get(c.rework_reason_id) }}{% endif %}{% endif %}
         {% if c.observations %}<br><span class="text-ink-muted">{{ c.observations }}</span>{% endif %}</li>
       {% endfor %}
     </ul>
-    {% else %}<p class="mb-3 text-sm text-ink-muted">Sin rondas todavía.</p>{% endif %}
+    {% else %}<p class="mb-3 text-sm text-ink-muted">{{ _("Sin rondas todavía.") }}</p>{% endif %}
     {% if can_edit %}
     {% if pending %}
     <form method="post" action="{{ url_for('projects.decide_round', project_id=project.id, cycle_id=pending.id) }}" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div><label for="fecha-r{{ pending.id }}" class="mb-1 block text-xs text-ink-muted">Fecha de resolución</label>
+      <div><label for="fecha-r{{ pending.id }}" class="mb-1 block text-xs text-ink-muted">{{ _("Fecha de resolución") }}</label>
         <input id="fecha-r{{ pending.id }}" name="fecha" type="date" required value="{{ today.isoformat() }}" class="block w-full {{ input }}"></div>
-      <div><label for="cat-{{ pending.id }}" class="mb-1 block text-xs text-ink-muted">Categoría de origen (si se observa)</label>
+      <div><label for="cat-{{ pending.id }}" class="mb-1 block text-xs text-ink-muted">{{ _("Categoría de origen (si se observa)") }}</label>
         <select id="cat-{{ pending.id }}" name="categoria" class="block w-full {{ input }}"><option value="">—</option>
           {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
-      <div><label for="mot-{{ pending.id }}" class="mb-1 block text-xs text-ink-muted">Motivo (opcional)</label>
+      <div><label for="mot-{{ pending.id }}" class="mb-1 block text-xs text-ink-muted">{{ _("Motivo (opcional)") }}</label>
         <select id="mot-{{ pending.id }}" name="motivo" class="block w-full {{ input }}"><option value="">—</option>
           {% for r in reasons %}<option value="{{ r.id }}">{{ items_all.get(r.parent_id, '') }} / {{ r.name }}</option>{% endfor %}</select></div>
-      <div class="sm:col-span-2 lg:col-span-4"><label for="obs-{{ pending.id }}" class="mb-1 block text-xs text-ink-muted">Observaciones (obligatorias si se observa)</label>
+      <div class="sm:col-span-2 lg:col-span-4"><label for="obs-{{ pending.id }}" class="mb-1 block text-xs text-ink-muted">{{ _("Observaciones (obligatorias si se observa)") }}</label>
         <textarea id="obs-{{ pending.id }}" name="observaciones" rows="2" maxlength="5000" class="block w-full {{ input }}"></textarea></div>
       <div class="flex gap-3 sm:col-span-2 lg:col-span-4">
-        <button type="submit" name="resultado" value="approved" class="{{ primary }}">Aprobar {{ round_name(ph, pending) }}</button>
-        <button type="submit" name="resultado" value="returned" class="{{ quiet }}">Observar (devolver a construcción)</button>
+        <button type="submit" name="resultado" value="approved" class="{{ primary }}">{{ _("Aprobar") }} {{ round_name(ph, pending) }}</button>
+        <button type="submit" name="resultado" value="returned" class="{{ quiet }}">{{ _("Observar (devolver a construcción)") }}</button>
       </div>
     </form>
     {% elif not approved %}
     <form method="post" action="{{ url_for('projects.submit_round', project_id=project.id, phase_id=ph.id) }}" class="flex flex-wrap items-end gap-3">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div><label for="fecha-e{{ ph.id }}" class="mb-1 block text-xs text-ink-muted">Fecha de envío</label>
+      <div><label for="fecha-e{{ ph.id }}" class="mb-1 block text-xs text-ink-muted">{{ _("Fecha de envío") }}</label>
         <input id="fecha-e{{ ph.id }}" name="fecha" type="date" required value="{{ today.isoformat() }}" class="{{ input }}"></div>
-      <button type="submit" class="{{ primary }}">Enviar a {{ ph.name | lower }}</button>
+      <button type="submit" class="{{ primary }}">{{ _("Enviar a %s") | format(ph.name | lower) }}</button>
     </form>
     {% endif %}
     {% endif %}

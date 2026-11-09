@@ -28,6 +28,7 @@ from hourplan.policies import services as policies
 from hourplan.policies.models import EvaluationPolicy, WorkPolicy
 from hourplan.resources import services as resources
 from hourplan.resources.models import Resource
+from hourplan.shared.i18n import N_, _, translated
 from hourplan.shared.labels import validation_message
 
 bp = Blueprint("admin", __name__, url_prefix="/admin", template_folder="templates")
@@ -35,15 +36,15 @@ bp = Blueprint("admin", __name__, url_prefix="/admin", template_folder="template
 CATALOG_ROLES = (Role.ADMIN, Role.PM)
 
 KIND_LABELS = {
-    CatalogKind.REQUIREMENT_TYPE: "Tipos de requerimiento",
-    CatalogKind.TASK_TYPE: "Tipos de tarea",
-    CatalogKind.PROJECT_STATUS: "Estados de proyecto",
-    CatalogKind.PRIORITY: "Prioridades",
-    CatalogKind.REWORK_CATEGORY: "Categorías de retrabajo",
-    CatalogKind.REWORK_REASON: "Motivos de retrabajo",
-    CatalogKind.ACTIVITY_BUCKET: "Bolsas de actividad",
-    CatalogKind.APPLICATION_TYPE: "Tipos de aplicación",
-    CatalogKind.CHANGE_REQUEST_SIZE: "Tamaños de solicitud de cambio",
+    CatalogKind.REQUIREMENT_TYPE: N_("Tipos de requerimiento"),
+    CatalogKind.TASK_TYPE: N_("Tipos de tarea"),
+    CatalogKind.PROJECT_STATUS: N_("Estados de proyecto"),
+    CatalogKind.PRIORITY: N_("Prioridades"),
+    CatalogKind.REWORK_CATEGORY: N_("Categorías de retrabajo"),
+    CatalogKind.REWORK_REASON: N_("Motivos de retrabajo"),
+    CatalogKind.ACTIVITY_BUCKET: N_("Bolsas de actividad"),
+    CatalogKind.APPLICATION_TYPE: N_("Tipos de aplicación"),
+    CatalogKind.CHANGE_REQUEST_SIZE: N_("Tamaños de solicitud de cambio"),
 }
 # Attribute flags editable per kind.
 KIND_FLAGS = {
@@ -61,16 +62,16 @@ def navigation() -> dict[str, Any]:
     if current_user.is_authenticated:
         if current_user.has_role(*CATALOG_ROLES):
             links += [
-                (url_for("admin.catalog_list"), "Catálogos"),
-                (url_for("admin.portfolio_list"), "Carteras"),
-                (url_for("admin.application_list"), "Aplicaciones"),
-                (url_for("admin.repository_list"), "Repositorios"),
+                (url_for("admin.catalog_list"), _("Catálogos")),
+                (url_for("admin.portfolio_list"), _("Carteras")),
+                (url_for("admin.application_list"), _("Aplicaciones")),
+                (url_for("admin.repository_list"), _("Repositorios")),
             ]
         if current_user.has_role(Role.ADMIN):
             links += [
-                (url_for("admin.user_list"), "Usuarios"),
-                (url_for("admin.policy_list"), "Políticas"),
-                (url_for("admin.holiday_list"), "Feriados"),
+                (url_for("admin.user_list"), _("Usuarios")),
+                (url_for("admin.policy_list"), _("Políticas")),
+                (url_for("admin.holiday_list"), _("Feriados")),
             ]
     return {"nav_links": links}
 
@@ -90,19 +91,19 @@ def _fail(err: Exception) -> None:
 def _message(err: Exception) -> str:
     match err:
         case catalogs.DuplicateError():
-            return "Ya existe un registro con ese código o nombre."
+            return _("Ya existe un registro con ese código o nombre.")
         case auth.EmailAlreadyRegisteredError():
-            return "Ya existe un usuario con ese correo."
+            return _("Ya existe un usuario con ese correo.")
         case auth.WeakPasswordError():
-            return "La contraseña debe tener al menos 12 caracteres."
+            return _("La contraseña debe tener al menos 12 caracteres.")
         case auth.SelfLockoutError():
-            return "No puedes quitarte tu propio acceso de administración."
+            return _("No puedes quitarte tu propio acceso de administración.")
         case policies.HolidayError() | policies.PolicyInForceError():
             return str(err)
         case ValidationError():
             return validation_message(err)
         case _:
-            return "No se pudo guardar: revisa los datos."
+            return _("No se pudo guardar: revisa los datos.")
 
 
 def _get_or_404[T](model: type[T], entity_id: int) -> T:
@@ -125,6 +126,9 @@ def _none_if_zero(value: int | None) -> int | None:
 
 
 def _form_page(form: Any, title: str, back: str, *, code_locked: bool = False) -> str:
+    for field in form:
+        if getattr(field, "choices", None):
+            field.choices = [(value, _(str(text))) for value, text in field.choices]
     return render_template(
         "admin/form.html", form=form, title=title, back=back, code_locked=code_locked
     )
@@ -150,7 +154,7 @@ def _save(action: Callable[[], object], back: str) -> Response | None:
 
 def _toggle(entity: Any, setter: Callable[..., object], back: str) -> Response:
     setter(db.session, entity, not entity.is_active, actor_id=_actor())
-    flash("Registro desactivado." if not entity.is_active else "Registro activado.", "info")
+    flash(_("Registro desactivado.") if not entity.is_active else _("Registro activado."), "info")
     return redirect(back)
 
 
@@ -163,7 +167,7 @@ def catalog_list() -> str:
     kind = _kind_arg(request.args.get("kind"))
     return render_template(
         "admin/catalog_list.html",
-        kinds=KIND_LABELS,
+        kinds=translated(KIND_LABELS),
         kind=kind,
         items=catalogs.list_items(db.session, kind),
     )
@@ -190,7 +194,7 @@ def _catalog_form(kind: CatalogKind, item: CatalogItem | None = None) -> forms.C
         delattr(form, "parent_id")
     else:
         parents = catalogs.list_items(db.session, parent_kind)
-        form.parent_id.choices = _options(parents, empty="Sin padre")
+        form.parent_id.choices = _options(parents, empty=_("Sin padre"))
     if item is not None:
         del form.code
     return form
@@ -223,7 +227,7 @@ def catalog_new() -> Response | str:
         )
         if done:
             return done
-    return _form_page(form, f"Nuevo · {KIND_LABELS[kind]}", back)
+    return _form_page(form, (_("Nuevo · %s") % (_(KIND_LABELS[kind]),)), back)
 
 
 @bp.route("/catalogos/<int:item_id>", methods=["GET", "POST"])
@@ -247,7 +251,7 @@ def catalog_edit(item_id: int) -> Response | str:
         )
         if done:
             return done
-    return _form_page(form, f"Editar {item.code}", back)
+    return _form_page(form, (_("Editar %s") % (item.code,)), back)
 
 
 @bp.post("/catalogos/<int:item_id>/activo")
@@ -264,7 +268,7 @@ def catalog_toggle(item_id: int) -> Response:
 @roles_required(*CATALOG_ROLES)
 def portfolio_list() -> str:
     rows = [(p, [p.code, p.name, p.sort_order]) for p in catalogs.list_portfolios(db.session)]
-    return _simple_list("Carteras", ["Código", "Nombre", "Orden"], rows, "portfolio")
+    return _simple_list(_("Carteras"), [_("Código"), _("Nombre"), _("Orden")], rows, "portfolio")
 
 
 @bp.route("/carteras/nueva", methods=["GET", "POST"])
@@ -308,7 +312,7 @@ def portfolio_edit(entity_id: int) -> Response | str:
         )
         if done:
             return done
-    return _form_page(form, f"Editar {portfolio.code}", back)
+    return _form_page(form, (_("Editar %s") % (portfolio.code,)), back)
 
 
 @bp.post("/carteras/<int:entity_id>/activo")
@@ -324,7 +328,7 @@ def portfolio_toggle(entity_id: int) -> Response:
 def _application_form(application: Application | None = None) -> forms.ApplicationForm:
     form = forms.ApplicationForm(obj=application)
     types = catalogs.list_items(db.session, CatalogKind.APPLICATION_TYPE)
-    form.type_id.choices = _options(types, empty="Sin tipo")
+    form.type_id.choices = _options(types, empty=_("Sin tipo"))
     if application is not None:
         del form.code
         if not form.is_submitted():
@@ -383,7 +387,7 @@ def application_edit(entity_id: int) -> Response | str:
         )
         if done:
             return done
-    return _form_page(form, f"Editar {application.code}", back)
+    return _form_page(form, (_("Editar %s") % (application.code,)), back)
 
 
 @bp.post("/aplicaciones/<int:entity_id>/activo")
@@ -399,7 +403,7 @@ def application_toggle(entity_id: int) -> Response:
 def _repository_form(repository: Repository | None = None) -> forms.RepositoryForm:
     form = forms.RepositoryForm(obj=repository)
     form.application_id.choices = _options(
-        catalogs.list_applications(db.session), empty="Sin aplicación"
+        catalogs.list_applications(db.session), empty=_("Sin aplicación")
     )
     if repository is not None and not form.is_submitted():
         form.application_id.data = repository.application_id or 0
@@ -414,7 +418,9 @@ def repository_list() -> str:
         (r, [r.name, r.url or "—", names.get(r.application_id or 0, "—")])
         for r in catalogs.list_repositories(db.session)
     ]
-    return _simple_list("Repositorios", ["Nombre", "URL", "Aplicación"], rows, "repository")
+    return _simple_list(
+        _("Repositorios"), [_("Nombre"), "URL", _("Aplicación")], rows, "repository"
+    )
 
 
 @bp.route("/repositorios/nuevo", methods=["GET", "POST"])
@@ -458,7 +464,7 @@ def repository_edit(entity_id: int) -> Response | str:
         )
         if done:
             return done
-    return _form_page(form, f"Editar {repository.name}", back)
+    return _form_page(form, (_("Editar %s") % (repository.name,)), back)
 
 
 @bp.post("/repositorios/<int:entity_id>/activo")
@@ -527,7 +533,7 @@ def user_detail(user_id: int) -> str:
         link_form=link_form,
         resource=resources.resource_of(db.session, user),
         has_free=bool(free),
-        labels=forms.ROLE_LABELS,
+        labels=translated(forms.ROLE_LABELS),
         roles=sorted(user.roles),
     )
 
@@ -582,7 +588,7 @@ def user_toggle(user_id: int) -> Response:
     except auth.SelfLockoutError as err:
         _fail(err)
     else:
-        flash("Usuario activado." if user.is_active else "Usuario desactivado.", "info")
+        flash(_("Usuario activado.") if user.is_active else _("Usuario desactivado."), "info")
     return redirect(url_for("admin.user_detail", user_id=user.id))
 
 
@@ -590,14 +596,14 @@ def user_toggle(user_id: int) -> Response:
 
 POLICY_KINDS: dict[str, tuple[str, Any, Any, Any, Any]] = {
     "evaluacion": (
-        "Política de evaluación",
+        N_("Política de evaluación"),
         EvaluationPolicy,
         forms.EvaluationPolicyForm,
         policies.EvaluationPolicyData,
         policies.schedule_evaluation_policy,
     ),
     "trabajo": (
-        "Política de jornada",
+        N_("Política de jornada"),
         WorkPolicy,
         forms.WorkPolicyForm,
         policies.WorkPolicyData,
@@ -617,7 +623,7 @@ def policy_list() -> str:
         sections.append(
             {
                 "slug": slug,
-                "title": title,
+                "title": _(title),
                 "versions": [
                     (v, _policy_values(v), v is current, v.effective_from > today) for v in versions
                 ],
@@ -657,7 +663,7 @@ def policy_new(slug: str) -> Response | str:
         )
         if done:
             return done
-    return _form_page(form, f"Nueva versión · {title}", back)
+    return _form_page(form, (_("Nueva versión · %s") % (_(title),)), back)
 
 
 @bp.get("/feriados")

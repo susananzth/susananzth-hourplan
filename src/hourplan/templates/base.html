@@ -7,9 +7,12 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}HourPlan{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <script type="application/json" id="hp-i18n">{{ js_catalog | tojson }}</script>
+  <script src="{{ url_for('static', filename='js/i18n.js') }}" defer></script>
   <script src="{{ url_for('static', filename='vendor/htmx.min.js') }}" defer></script>
   <script src="{{ url_for('static', filename='vendor/alpine-csp.min.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/timer.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/tables.js') }}" defer></script>
 </head>
 <body class="h-full bg-surface text-ink antialiased" hx-headers='{"X-CSRFToken": "{{ csrf_token() }}"}'>
   <a href="#contenido" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:text-brand-700">{{ _("Saltar al contenido") }}</a>
@@ -57,7 +60,7 @@
     {% if messages %}
     <div class="mb-6 space-y-2" role="status" aria-live="polite">
       {% for category, message in messages %}
-      <p class="rounded-md border px-4 py-3 text-sm {{ 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200' if category == 'error' else 'border-line bg-surface-raised text-ink' }}">{{ message }}</p>
+      <p class="rounded-md border px-4 py-3 text-sm {{ 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200' if category == 'error' else 'border-line bg-surface-raised text-ink' }}">{{ _(message) }}</p>
       {% endfor %}
     </div>
     {% endif %}

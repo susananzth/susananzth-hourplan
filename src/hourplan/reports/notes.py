@@ -9,6 +9,7 @@ from hourplan.db import transaction
 from hourplan.projects.models import Project
 from hourplan.reports.compare import ReportError
 from hourplan.reports.models import DeviationNote
+from hourplan.shared.translate import _
 from hourplan.timesheet.models import TimeEntry
 
 MAX_LENGTH = 5000
@@ -21,7 +22,7 @@ def add_note(
     if not body:
         raise ReportError("Escribe la nota de desvío.")
     if len(body) > MAX_LENGTH:
-        raise ReportError(f"La nota es demasiado larga (máximo {MAX_LENGTH} caracteres).")
+        raise ReportError(_("La nota es demasiado larga (máximo %s caracteres).") % (MAX_LENGTH,))
     if session.get(Project, project_id) is None:
         raise ReportError("No se encontró ese proyecto.")
     with transaction(session):

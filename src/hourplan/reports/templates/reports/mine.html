@@ -1,33 +1,33 @@
 {% extends "base.html" %}
 {% from "reports/_macros.html" import period, tile, hours_table, legend %}
-{% block title %}Mi informe · HourPlan{% endblock %}
+{% block title %}{{ _("Mi informe") }} · HourPlan{% endblock %}
 {% block content %}
 {% include "reports/_tabs.html" %}
 <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
-  <h1 class="text-2xl font-semibold text-ink">Mi informe</h1>
+  <h1 class="text-2xl font-semibold text-ink">{{ _("Mi informe") }}</h1>
   {% if lines is not none %}<div class="flex flex-wrap items-end gap-3">
     {{ period(start, end) }}
-    <a href="{{ url_for('reports.export_mine', desde=start.isoformat(), hasta=end.isoformat()) }}" class="rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-ink hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Descargar Excel</a>
+    <a href="{{ url_for('reports.export_mine', desde=start.isoformat(), hasta=end.isoformat()) }}" class="rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-ink hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">{{ _("Descargar Excel") }}</a>
   </div>{% endif %}
 </div>
 {% if lines is none %}
-<p class="text-ink-muted">Tu usuario todavía no está vinculado a un recurso. Pide a un administrador que lo vincule para ver tu informe.</p>
+<p class="text-ink-muted">{{ _("Tu usuario todavía no está vinculado a un recurso. Pide a un administrador que lo vincule para ver tu informe.") }}</p>
 {% else %}
 <div class="mb-6 grid gap-4 sm:grid-cols-3">
-  {{ tile("Mis horas del período", '%.2f' | format(totals.hours) ~ ' h') }}
-  {{ tile("De ellas, rework", '%.2f' | format(totals.rework) ~ ' h', ('%.1f' | format(totals.rework_share) ~ ' %') if totals.rework_share is not none else none) }}
-  {{ tile("Absorbidas por contingencias", '%.2f' | format(totals.contingency) ~ ' h') }}
+  {{ tile(_("Mis horas del período"), '%.2f' | format(totals.hours) ~ ' h') }}
+  {{ tile(_("De ellas, rework"), '%.2f' | format(totals.rework) ~ ' h', ('%.1f' | format(totals.rework_share) ~ ' %') if totals.rework_share is not none else none) }}
+  {{ tile(_("Absorbidas por contingencias"), '%.2f' | format(totals.contingency) ~ ' h') }}
 </div>
 
 <section aria-labelledby="plan" class="mb-6">
-  <h2 id="plan" class="mb-3 text-lg font-semibold text-ink">Mi plan contra lo real, por proyecto</h2>
+  <h2 id="plan" class="mb-3 text-lg font-semibold text-ink">{{ _("Mi plan contra lo real, por proyecto") }}</h2>
   <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
-    <table aria-label="Mi informe" class="w-full text-left text-sm">
+    <table aria-label="{{ _('Mi informe') }}" class="w-full text-left text-sm">
       <thead class="border-b border-line text-ink-muted"><tr>
-        <th scope="col" class="px-4 py-2 font-medium">Proyecto</th>
-        <th scope="col" class="px-4 py-2 text-right font-medium">Asignado</th>
-        <th scope="col" class="px-4 py-2 text-right font-medium">Real</th>
-        <th scope="col" class="px-4 py-2 text-right font-medium">Rework</th>
+        <th scope="col" class="px-4 py-2 font-medium">{{ _("Proyecto") }}</th>
+        <th scope="col" class="px-4 py-2 text-right font-medium">{{ _("Asignado") }}</th>
+        <th scope="col" class="px-4 py-2 text-right font-medium">{{ _("Real") }}</th>
+        <th scope="col" class="px-4 py-2 text-right font-medium">{{ _("Rework") }}</th>
       </tr></thead>
       <tbody>
         {% for l in lines %}
@@ -38,7 +38,7 @@
           <td class="px-4 py-2 text-right text-ink">{{ '%.1f' | format(l.rework_hours) }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="4" class="px-4 py-6 text-center text-ink-muted">Todavía no tienes horas ni asignaciones.</td></tr>
+        <tr><td colspan="4" class="px-4 py-6 text-center text-ink-muted">{{ _("Todavía no tienes horas ni asignaciones.") }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -46,14 +46,14 @@
 </section>
 
 {{ legend() }}
-<section aria-labelledby="mes" class="mb-6"><h2 id="mes" class="mb-3 text-lg font-semibold text-ink">Por mes</h2>{{ hours_table('Mes', months) }}</section>
-<section aria-labelledby="tipo" class="mb-6"><h2 id="tipo" class="mb-3 text-lg font-semibold text-ink">Por tipo de tarea</h2>{{ hours_table('Tipo de tarea', tasks) }}</section>
+<section aria-labelledby="mes" class="mb-6"><h2 id="mes" class="mb-3 text-lg font-semibold text-ink">{{ _("Por mes") }}</h2>{{ hours_table(_('Mes'), months) }}</section>
+<section aria-labelledby="tipo" class="mb-6"><h2 id="tipo" class="mb-3 text-lg font-semibold text-ink">{{ _("Por tipo de tarea") }}</h2>{{ hours_table(_('Tipo de tarea'), tasks) }}</section>
 
 <section aria-labelledby="notas" class="mb-6">
-  <h2 id="notas" class="mb-3 text-lg font-semibold text-ink">Notas de desvío de mis proyectos</h2>
+  <h2 id="notas" class="mb-3 text-lg font-semibold text-ink">{{ _("Notas de desvío de mis proyectos") }}</h2>
   <ul class="space-y-3">
     {% for p, n in notes %}<li class="rounded-lg border border-line bg-surface-raised p-3 text-sm text-ink"><p class="font-medium">{{ p.code }}</p><p class="whitespace-pre-line">{{ n.body }}</p><p class="mt-1 text-xs text-ink-muted">{{ n.created_at.strftime('%d/%m/%Y') }}</p></li>
-    {% else %}<li class="text-sm text-ink-muted">Sin notas.</li>{% endfor %}
+    {% else %}<li class="text-sm text-ink-muted">{{ _("Sin notas.") }}</li>{% endfor %}
   </ul>
 </section>
 {% endif %}

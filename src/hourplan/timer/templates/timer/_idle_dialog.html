@@ -1,9 +1,9 @@
 <dialog id="idle-dialog" aria-labelledby="idle-title" class="m-auto w-full max-w-md rounded-lg border border-line bg-surface-raised p-6 text-ink">
-  <h2 id="idle-title" class="text-lg font-semibold">¿Qué hacías?</h2>
-  <p class="mt-1 text-sm text-ink-muted">Estuviste sin actividad <span id="idle-minutes">varios</span> min mientras corría el cronómetro.</p>
+  <h2 id="idle-title" class="text-lg font-semibold">{{ _("¿Qué hacías?") }}</h2>
+  <p class="mt-1 text-sm text-ink-muted">{{ _("Estuviste sin actividad") }} <span id="idle-minutes">{{ _("varios") }}</span> {{ _("min mientras corría el cronómetro.") }}</p>
   <div class="mt-4 grid gap-2">
     {% for value, text in idle_choices.items() %}
-    <button type="button" data-idle-choice="{{ value }}" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600 text-left">{{ text }}{% if value == 'break' %} (se descuenta){% endif %}</button>
+    <button type="button" data-idle-choice="{{ value }}" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600 text-left">{{ text }}{% if value == 'break' %} {{ _("(se descuenta)") }}{% endif %}</button>
     {% endfor %}
   </div>
 </dialog>

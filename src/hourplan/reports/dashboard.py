@@ -15,16 +15,17 @@ from hourplan.catalogs.models import Application, CatalogItem
 from hourplan.reports import rework
 from hourplan.reports.models import Compliance, ComplianceSnapshot
 from hourplan.resources.models import Resource
+from hourplan.shared.translate import N_, _
 from hourplan.timesheet.models import TimeEntry
 
 ZERO = Decimal(0)
 DIMENSIONS = {
-    "persona": "Persona",
-    "aplicacion": "Aplicación",
-    "tipo": "Tipo de tarea",
-    "mes": "Mes",
+    "persona": N_("Persona"),
+    "aplicacion": N_("Aplicación"),
+    "tipo": N_("Tipo de tarea"),
+    "mes": N_("Mes"),
 }
-NONE_LABEL = {"aplicacion": "Sin aplicación", "tipo": "Sin tipo de tarea"}
+NONE_LABEL = {"aplicacion": N_("Sin aplicación"), "tipo": N_("Sin tipo de tarea")}
 
 
 @dataclass
@@ -103,7 +104,7 @@ def hours_by(
     )
     if resource_id:
         stmt = stmt.where(TimeEntry.resource_id == resource_id)
-    fallback = NONE_LABEL.get(dim, "—")
+    fallback = _(NONE_LABEL.get(dim, "—"))
     return _scale(
         [
             Row(label or fallback, Decimal(h), Decimal(r), Decimal(c))

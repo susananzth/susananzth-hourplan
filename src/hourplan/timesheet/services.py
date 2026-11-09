@@ -22,6 +22,7 @@ from hourplan.policies.services import policy_at
 from hourplan.projects.models import Project, ProjectPhase
 from hourplan.resources.models import Resource
 from hourplan.shared.labels import label
+from hourplan.shared.translate import _
 from hourplan.timesheet.models import (
     Absence,
     ApprovalStatus,
@@ -75,7 +76,7 @@ class EntryData(BaseModel):
     @classmethod
     def _quarter_hours(cls, value: Decimal) -> Decimal:
         if value % QUARTER != 0:
-            raise ValueError(f"{label('hours')} debe ser múltiplo de 0,25.")
+            raise ValueError(_("%s debe ser múltiplo de 0,25.") % (label("hours"),))
         return value
 
     @field_validator("description")
@@ -87,11 +88,20 @@ class EntryData(BaseModel):
     def _one_target(self) -> Self:
         if (self.project_id is None) == (self.activity_bucket_id is None):
             raise ValueError(
-                f"Indica {label('project_id').lower()} o {label('activity_bucket_id').lower()}, "
-                "pero no ambos."
+                _("Indica %s o %s, pero no ambos.")
+                % (
+                    label("project_id").lower(),
+                    label("activity_bucket_id").lower(),
+                )
             )
         if self.project_phase_id is not None and self.project_id is None:
-            raise ValueError(f"{label('project_phase_id')} necesita {label('project_id').lower()}.")
+            raise ValueError(
+                _("%s necesita %s.")
+                % (
+                    label("project_phase_id"),
+                    label("project_id").lower(),
+                )
+            )
         return self
 
 
@@ -167,7 +177,11 @@ def _check_phase(session: Session, data: EntryData) -> None:
     phase = session.get(ProjectPhase, data.project_phase_id)
     if phase is None or phase.project_id != data.project_id:
         raise EntryError(
-            f"{label('project_phase_id')} no pertenece a ese {label('project_id').lower()}."
+            _("%s no pertenece a ese %s.")
+            % (
+                label("project_phase_id"),
+                label("project_id").lower(),
+            )
         )
 
 
@@ -544,7 +558,11 @@ def toggle_favorite(session: Session, resource_id: int, key: RowKey) -> bool:
     _resource(session, resource_id)
     if (key.project_id is None) == (key.activity_bucket_id is None):
         raise EntryError(
-            f"Un favorito es {label('project_id').lower()} o {label('activity_bucket_id').lower()}."
+            _("Un favorito es %s o %s.")
+            % (
+                label("project_id").lower(),
+                label("activity_bucket_id").lower(),
+            )
         )
     with transaction(session):
         found = session.scalars(select(TimeFavorite).where(*_favorite_filter(resource_id, key)))

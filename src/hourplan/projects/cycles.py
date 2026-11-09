@@ -18,6 +18,7 @@ from hourplan.catalogs.models import CatalogKind
 from hourplan.db import transaction
 from hourplan.projects.models import CycleOutcome, PhaseCycle, PhaseStatus, PhaseType, ProjectPhase
 from hourplan.shared.labels import label
+from hourplan.shared.translate import _
 
 ENTITY = "phase_cycle"
 GATED_TYPES = frozenset({PhaseType.VERIFICATION.value, PhaseType.APPROVAL.value})
@@ -117,7 +118,9 @@ def _check_origin(session: Session, data: Decision) -> None:
     if not data.observations:
         raise CycleError("Para observar una ronda escribe las observaciones.")
     if data.rework_category_id is None:
-        raise CycleError(f"Para observar una ronda elige la {label('rework_category_id').lower()}.")
+        raise CycleError(
+            _("Para observar una ronda elige la %s.") % (label("rework_category_id").lower(),)
+        )
     try:
         catalogs.require_item(session, data.rework_category_id, CatalogKind.REWORK_CATEGORY)
         if data.rework_reason_id is not None:
@@ -126,7 +129,7 @@ def _check_origin(session: Session, data: Decision) -> None:
             )
             if reason.parent_id != data.rework_category_id:
                 raise CycleError(
-                    f"{label('rework_reason_id')}: no pertenece a la categoría elegida."
+                    _("%s: no pertenece a la categoría elegida.") % (label("rework_reason_id"),)
                 )
     except catalogs.CatalogError:
         raise CycleError("Esa categoría o motivo de rework no existe o está inactivo.") from None

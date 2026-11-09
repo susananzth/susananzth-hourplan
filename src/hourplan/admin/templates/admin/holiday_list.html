@@ -1,20 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Feriados · HourPlan{% endblock %}
+{% block title %}{{ _("Feriados") }} · HourPlan{% endblock %}
 {% block content %}
 <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-  <h1 class="text-2xl font-semibold text-ink">Feriados {{ year }}</h1>
-  <nav aria-label="Años" class="flex gap-2 text-sm">
+  <h1 class="text-2xl font-semibold text-ink">{{ _("Feriados") }} {{ year }}</h1>
+  <nav aria-label="{{ _('Años') }}" class="flex gap-2 text-sm">
     <a href="{{ url_for('admin.holiday_list', anio=year - 1) }}" class="rounded-md border border-line-strong px-3 py-1.5 text-ink hover:bg-surface-raised">← {{ year - 1 }}</a>
     <a href="{{ url_for('admin.holiday_list', anio=year + 1) }}" class="rounded-md border border-line-strong px-3 py-1.5 text-ink hover:bg-surface-raised">{{ year + 1 }} →</a>
   </nav>
 </div>
-<p class="mb-4 max-w-2xl text-sm text-ink-muted">Los feriados no cuentan como días hábiles en la grilla de horas ni en la capacidad.</p>
+<p class="mb-4 max-w-2xl text-sm text-ink-muted">{{ _("Los feriados no cuentan como días hábiles en la grilla de horas ni en la capacidad.") }}</p>
 <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
-  <table aria-label="Feriados" class="w-full text-left text-sm">
+  <table aria-label="{{ _('Feriados') }}" class="w-full text-left text-sm">
     <thead class="border-b border-line text-ink-muted"><tr>
-      <th scope="col" class="px-4 py-2 font-medium">Fecha</th>
-      <th scope="col" class="px-4 py-2 font-medium">Nombre</th>
-      <th scope="col" class="px-4 py-2"><span class="sr-only">Acciones</span></th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Fecha") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Nombre") }}</th>
+      <th scope="col" class="px-4 py-2"><span class="sr-only">{{ _("Acciones") }}</span></th>
     </tr></thead>
     <tbody>
       {% for h in holidays %}
@@ -24,12 +24,12 @@
         <td class="px-4 py-2 text-right">
           <form method="post" action="{{ url_for('admin.holiday_delete', holiday_id=h.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600">Quitar</button>
+            <button type="submit" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600">{{ _("Quitar") }}</button>
           </form>
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="3" class="px-4 py-6 text-center text-ink-muted">No hay feriados cargados para {{ year }}.</td></tr>
+      <tr><td colspan="3" class="px-4 py-6 text-center text-ink-muted">{{ _("No hay feriados cargados para %s.") | format(year) }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -37,13 +37,13 @@
 <form method="post" action="{{ url_for('admin.holiday_add') }}" class="mt-6 flex flex-wrap items-end gap-3 rounded-lg border border-line bg-surface-raised p-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div>
-    <label for="fecha" class="mb-1 block text-sm font-medium text-ink">Fecha</label>
+    <label for="fecha" class="mb-1 block text-sm font-medium text-ink">{{ _("Fecha") }}</label>
     <input id="fecha" name="fecha" type="date" required class="rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
   </div>
   <div>
-    <label for="nombre" class="mb-1 block text-sm font-medium text-ink">Nombre</label>
+    <label for="nombre" class="mb-1 block text-sm font-medium text-ink">{{ _("Nombre") }}</label>
     <input id="nombre" name="nombre" maxlength="120" required class="rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
   </div>
-  <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Agregar</button>
+  <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">{{ _("Agregar") }}</button>
 </form>
 {% endblock %}

@@ -44,7 +44,7 @@
     var close = document.createElement("button");
     close.type = "button";
     close.className = "mt-1 text-xs underline";
-    close.textContent = "Cerrar";
+    close.textContent = window.hpT("Cerrar");
     close.addEventListener("click", function () { box.remove(); });
     box.append(strong, text, close);
     region.append(box);

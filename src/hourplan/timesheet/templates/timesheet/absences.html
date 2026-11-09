@@ -1,27 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Ausencias · HourPlan{% endblock %}
+{% block title %}{{ _("Ausencias") }} · HourPlan{% endblock %}
 {% block content %}
 {% set input = "rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
 {% set primary = "rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600" %}
 {% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
-<h1 class="mb-6 text-2xl font-semibold text-ink">Ausencias</h1>
+<h1 class="mb-6 text-2xl font-semibold text-ink">{{ _("Ausencias") }}</h1>
 
 {% if pending %}
 <section aria-labelledby="pendientes" class="mb-10">
-  <h2 id="pendientes" class="mb-3 text-lg font-semibold text-ink">Solicitudes por resolver</h2>
+  <h2 id="pendientes" class="mb-3 text-lg font-semibold text-ink">{{ _("Solicitudes por resolver") }}</h2>
   <div class="space-y-3">
     {% for absence, name in pending %}
     <form method="post" action="{{ url_for('absences.decide', absence_id=absence.id) }}" class="flex flex-wrap items-end gap-3 rounded-lg border border-line bg-surface-raised p-4">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <p class="min-w-60 flex-1 text-sm text-ink"><strong>{{ name }}</strong> · {{ types[absence.absence_type] }}<br>
-        {{ absence.start_on.strftime('%d/%m/%Y') }} al {{ absence.end_on.strftime('%d/%m/%Y') }}{% if absence.hours_per_day %} · {{ absence.hours_per_day }} h por día{% endif %}
+        {{ _("%s al %s") | format(absence.start_on.strftime('%d/%m/%Y'), absence.end_on.strftime('%d/%m/%Y')) }}{% if absence.hours_per_day %} · {{ absence.hours_per_day }} {{ _("h por día") }}{% endif %}
         {% if absence.notes %}<br><span class="text-ink-muted">{{ absence.notes }}</span>{% endif %}</p>
       <div>
-        <label for="motivo-{{ absence.id }}" class="mb-1 block text-xs text-ink-muted">Motivo (obligatorio al rechazar)</label>
+        <label for="motivo-{{ absence.id }}" class="mb-1 block text-xs text-ink-muted">{{ _("Motivo (obligatorio al rechazar)") }}</label>
         <input id="motivo-{{ absence.id }}" name="motivo" maxlength="500" class="{{ input }}">
       </div>
-      <button type="submit" name="decision" value="approve" class="{{ primary }}">Aprobar</button>
-      <button type="submit" name="decision" value="reject" class="{{ quiet }}">Rechazar</button>
+      <button type="submit" name="decision" value="approve" class="{{ primary }}">{{ _("Aprobar") }}</button>
+      <button type="submit" name="decision" value="reject" class="{{ quiet }}">{{ _("Rechazar") }}</button>
     </form>
     {% endfor %}
   </div>
@@ -29,16 +29,16 @@
 {% endif %}
 
 <section aria-labelledby="mias" class="mb-10">
-  <h2 id="mias" class="mb-3 text-lg font-semibold text-ink">Mis ausencias</h2>
+  <h2 id="mias" class="mb-3 text-lg font-semibold text-ink">{{ _("Mis ausencias") }}</h2>
   <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
-    <table aria-label="Ausencias" class="w-full text-left text-sm">
+    <table aria-label="{{ _('Ausencias') }}" class="w-full text-left text-sm">
       <thead class="border-b border-line text-ink-muted"><tr>
-        <th scope="col" class="px-4 py-2 font-medium">Tipo</th>
-        <th scope="col" class="px-4 py-2 font-medium">Desde</th>
-        <th scope="col" class="px-4 py-2 font-medium">Hasta</th>
-        <th scope="col" class="px-4 py-2 font-medium">Horas por día</th>
-        <th scope="col" class="px-4 py-2 font-medium">Estado</th>
-        <th scope="col" class="px-4 py-2"><span class="sr-only">Acciones</span></th>
+        <th scope="col" class="px-4 py-2 font-medium">{{ _("Tipo") }}</th>
+        <th scope="col" class="px-4 py-2 font-medium">{{ _("Desde") }}</th>
+        <th scope="col" class="px-4 py-2 font-medium">{{ _("Hasta") }}</th>
+        <th scope="col" class="px-4 py-2 font-medium">{{ _("Horas por día") }}</th>
+        <th scope="col" class="px-4 py-2 font-medium">{{ _("Estado") }}</th>
+        <th scope="col" class="px-4 py-2"><span class="sr-only">{{ _("Acciones") }}</span></th>
       </tr></thead>
       <tbody>
         {% for a in mine %}
@@ -46,19 +46,19 @@
           <td class="px-4 py-2 text-ink">{{ types[a.absence_type] }}</td>
           <td class="px-4 py-2 text-ink">{{ a.start_on.strftime('%d/%m/%Y') }}</td>
           <td class="px-4 py-2 text-ink">{{ a.end_on.strftime('%d/%m/%Y') }}</td>
-          <td class="px-4 py-2 text-ink">{{ a.hours_per_day or 'Día completo' }}</td>
+          <td class="px-4 py-2 text-ink">{{ a.hours_per_day or _('Día completo') }}</td>
           <td class="px-4 py-2 text-ink">{{ statuses[a.status] }}</td>
           <td class="px-4 py-2 text-right">
             {% if a.status != 'approved' or a.start_on > today %}
             <form method="post" action="{{ url_for('absences.cancel', absence_id=a.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="{{ quiet }}">Cancelar</button>
+              <button type="submit" class="{{ quiet }}">{{ _("Cancelar") }}</button>
             </form>
             {% endif %}
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="px-4 py-6 text-center text-ink-muted">No tienes ausencias próximas.</td></tr>
+        <tr><td colspan="6" class="px-4 py-6 text-center text-ink-muted">{{ _("No tienes ausencias próximas.") }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -66,32 +66,32 @@
 </section>
 
 <section aria-labelledby="solicitar">
-  <h2 id="solicitar" class="mb-3 text-lg font-semibold text-ink">Solicitar ausencia</h2>
+  <h2 id="solicitar" class="mb-3 text-lg font-semibold text-ink">{{ _("Solicitar ausencia") }}</h2>
   <form method="post" action="{{ url_for('absences.create') }}" class="grid gap-4 rounded-lg border border-line bg-surface-raised p-4 sm:grid-cols-2 lg:grid-cols-3">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div>
-      <label for="tipo" class="mb-1 block text-sm font-medium text-ink">Tipo</label>
+      <label for="tipo" class="mb-1 block text-sm font-medium text-ink">{{ _("Tipo") }}</label>
       <select id="tipo" name="tipo" class="block w-full {{ input }}">
         {% for value, label in types.items() %}<option value="{{ value.value }}">{{ label }}</option>{% endfor %}
       </select>
     </div>
     <div>
-      <label for="desde" class="mb-1 block text-sm font-medium text-ink">Desde</label>
+      <label for="desde" class="mb-1 block text-sm font-medium text-ink">{{ _("Desde") }}</label>
       <input id="desde" name="desde" type="date" required value="{{ today.isoformat() }}" class="block w-full {{ input }}">
     </div>
     <div>
-      <label for="hasta" class="mb-1 block text-sm font-medium text-ink">Hasta</label>
+      <label for="hasta" class="mb-1 block text-sm font-medium text-ink">{{ _("Hasta") }}</label>
       <input id="hasta" name="hasta" type="date" required value="{{ today.isoformat() }}" class="block w-full {{ input }}">
     </div>
     <div>
-      <label for="horas" class="mb-1 block text-sm font-medium text-ink">Horas por día <span class="font-normal text-ink-muted">(vacío = día completo)</span></label>
+      <label for="horas" class="mb-1 block text-sm font-medium text-ink">{{ _("Horas por día") }} <span class="font-normal text-ink-muted">{{ _("(vacío = día completo)") }}</span></label>
       <input id="horas" name="horas" inputmode="decimal" autocomplete="off" class="block w-full {{ input }}">
     </div>
     <div class="sm:col-span-2">
-      <label for="notas" class="mb-1 block text-sm font-medium text-ink">Notas</label>
+      <label for="notas" class="mb-1 block text-sm font-medium text-ink">{{ _("Notas") }}</label>
       <input id="notas" name="notas" maxlength="1000" class="block w-full {{ input }}">
     </div>
-    <div class="sm:col-span-2 lg:col-span-3"><button type="submit" class="{{ primary }}">Enviar solicitud</button></div>
+    <div class="sm:col-span-2 lg:col-span-3"><button type="submit" class="{{ primary }}">{{ _("Enviar solicitud") }}</button></div>
   </form>
 </section>
 {% endblock %}

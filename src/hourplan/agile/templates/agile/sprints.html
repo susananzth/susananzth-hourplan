@@ -42,7 +42,7 @@
       {% else %}
       <tr><td colspan="8" class="px-4 py-4 text-ink-muted">{{ _("Aún no hay sprints.") }}</td></tr>
       {% endfor %}
-      {% if totals.get(none) %}{% set t = totals[none] %}<tr><th scope="row" class="px-4 py-2 font-medium text-ink-muted">{{ _("Pendientes (sin sprint)") }}</th><td></td><td></td><td class="px-4 py-2 text-ink-muted">{{ _("%s de %s terminadas") | format(t.done, t.stories) }}</td><td class="px-4 py-2 text-ink-muted">{{ _("%s de %s") | format(t.points_done, t.points) }}</td><td class="px-4 py-2 text-ink-muted">{{ t.planned }}</td><td class="px-4 py-2 text-ink-muted">{{ t.actual }}</td><td></td></tr>{% endif %}
+      {% if totals.get(none) %}{% set t = totals[none] %}<tr data-fija><th scope="row" class="px-4 py-2 font-medium text-ink-muted">{{ _("Pendientes (sin sprint)") }}</th><td></td><td></td><td class="px-4 py-2 text-ink-muted">{{ _("%s de %s terminadas") | format(t.done, t.stories) }}</td><td class="px-4 py-2 text-ink-muted">{{ _("%s de %s") | format(t.points_done, t.points) }}</td><td class="px-4 py-2 text-ink-muted">{{ t.planned }}</td><td class="px-4 py-2 text-ink-muted">{{ t.actual }}</td><td></td></tr>{% endif %}
     </tbody>
   </table>
 </div>

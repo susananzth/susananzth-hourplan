@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from hourplan.db import transaction
 from hourplan.shared.labels import label
+from hourplan.shared.translate import N_, _
 from hourplan.timer.models import (
     OPEN_STATUSES,
     TimerPreference,
@@ -30,10 +31,10 @@ MIN_SECONDS = 60
 QUARTER = Decimal("0.25")
 
 IDLE_CHOICES = {
-    "meeting": "Reunión o llamada presencial",
-    "assist": "Asistencia a un compañero",
-    "offscreen": "Trabajo sin pantalla",
-    "break": "Descanso",
+    "meeting": N_("Reunión o llamada presencial"),
+    "assist": N_("Asistencia a un compañero"),
+    "offscreen": N_("Trabajo sin pantalla"),
+    "break": N_("Descanso"),
 }
 
 
@@ -136,7 +137,11 @@ def start(
     """Start on a task; the running timer is paused. A paused one on the same task resumes."""
     if key.project_id is None and key.activity_bucket_id is None:
         raise TimerError(
-            f"Indica {label('project_id').lower()} o {label('activity_bucket_id').lower()}."
+            _("Indica %s o %s.")
+            % (
+                label("project_id").lower(),
+                label("activity_bucket_id").lower(),
+            )
         )
     timesheet.EntryData(work_date=now.date(), hours=QUARTER, **asdict(key))  # validates the key
     with transaction(session):
@@ -269,7 +274,7 @@ def stop(
         timer.status = TimerStatus.STOPPED.value
         timer.segment_started_at = None
         timer.ended_at = now
-        entry, _ = timesheet.create_entry(
+        entry, _created = timesheet.create_entry(
             session, resource_id, data, actor_id=actor_id, source=EntrySource.TIMER
         )
         timer.time_entry_id = entry.id
@@ -295,7 +300,11 @@ def switch(
     """
     if key.project_id is None and key.activity_bucket_id is None:
         raise TimerError(
-            f"Indica {label('project_id').lower()} o {label('activity_bucket_id').lower()}."
+            _("Indica %s o %s.")
+            % (
+                label("project_id").lower(),
+                label("activity_bucket_id").lower(),
+            )
         )
     timesheet.EntryData(work_date=now.date(), hours=QUARTER, **asdict(key))  # validates the key
     current = running(session, resource_id, now)

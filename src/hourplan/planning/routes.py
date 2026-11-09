@@ -28,6 +28,7 @@ from hourplan.extensions import db
 from hourplan.planning import gantt, services
 from hourplan.projects import services as projects
 from hourplan.resources.models import Resource
+from hourplan.shared.i18n import _, translated
 from hourplan.shared.labels import label, validation_message
 
 bp = Blueprint("planning", __name__, url_prefix="/planificacion", template_folder="templates")
@@ -54,7 +55,9 @@ def _hours(raw: str | None) -> Decimal:
     try:
         return Decimal(raw)
     except InvalidOperation:
-        raise ValueError(f"{label('hours')}: escribe un número, por ejemplo 16 o 7,5.") from None
+        raise ValueError(
+            _("%s: escribe un número, por ejemplo 16 o 7,5.") % (label("hours"),)
+        ) from None
 
 
 def _error(err: Exception) -> str:
@@ -220,7 +223,7 @@ def _gantt(view: str, title: str, rows: list[gantt.Row], **extra: object) -> str
         today=_today(),
         prev_start=tl.start - timedelta(weeks=weeks),
         next_start=tl.start + timedelta(weeks=weeks),
-        kinds=gantt.KIND_LABELS,
+        kinds=translated(gantt.KIND_LABELS),
         **extra,
     )
 
@@ -232,7 +235,7 @@ def gantt_projects() -> str | FlaskResponse:
     rows = gantt.project_rows(db.session, _timeline(), portfolio_id=portfolio_id, today=_today())
     return _gantt(
         "proyectos",
-        "Gantt por proyecto",
+        _("Gantt por proyecto"),
         rows,
         portfolios=[p for p in catalogs.list_portfolios(db.session) if p.is_active],
         portfolio_id=portfolio_id,
@@ -242,7 +245,7 @@ def gantt_projects() -> str | FlaskResponse:
 @bp.get("/gantt/recursos")
 @roles_required(*CAPACITY_VIEWERS)
 def gantt_resources() -> str | FlaskResponse:
-    return _gantt("recursos", "Gantt por persona", gantt.resource_rows(db.session, _timeline()))
+    return _gantt("recursos", _("Gantt por persona"), gantt.resource_rows(db.session, _timeline()))
 
 
 @bp.get("/gantt/mio")
@@ -254,5 +257,5 @@ def gantt_personal() -> str | FlaskResponse:
     if resource is None:
         return render_template("planning/no_resource.html")
     return _gantt(
-        "mio", "Mi planificación", gantt.personal_rows(db.session, _timeline(), resource.id)
+        "mio", _("Mi planificación"), gantt.personal_rows(db.session, _timeline(), resource.id)
     )
