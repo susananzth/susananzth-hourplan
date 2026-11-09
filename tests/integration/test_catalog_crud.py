@@ -34,9 +34,9 @@ def test_item_create_update_and_deactivate_are_audited(session: Session) -> None
     services.set_item_active(session, item, False, actor_id=None)
     assert last_audit(session, "catalog_item").changes == {"is_active": [True, False]}
     # No change, no audit row.
-    before = session.scalars(select(AuditLog)).all()
+    before = session.scalars(select(AuditLog).order_by(AuditLog.id)).all()
     services.set_item_active(session, item, False, actor_id=None)
-    assert session.scalars(select(AuditLog)).all() == before
+    assert session.scalars(select(AuditLog).order_by(AuditLog.id)).all() == before
 
 
 def test_duplicate_code_is_rejected_per_kind(session: Session) -> None:

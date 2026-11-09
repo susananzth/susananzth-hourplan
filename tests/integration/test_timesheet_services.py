@@ -131,7 +131,9 @@ def test_owner_edits_freely_and_leader_needs_a_reason(
     services.update_entry(
         session, created.id, entry(project, "7"), actor_id=None, is_owner=False, reason="Corrección"
     )
-    logs = session.scalars(select(AuditLog).where(AuditLog.entity_id == created.id)).all()
+    logs = session.scalars(
+        select(AuditLog).where(AuditLog.entity_id == created.id).order_by(AuditLog.id)
+    ).all()
     assert [log.reason for log in logs] == [None, "Corrección"]
 
 
