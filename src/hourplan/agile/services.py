@@ -25,6 +25,7 @@ from hourplan.projects.models import (
     SprintStory,
 )
 from hourplan.shared.labels import label
+from hourplan.shared.translate import _
 from hourplan.timesheet.models import TimeEntry
 
 
@@ -75,7 +76,7 @@ class StoryData(BaseModel):
     def _quarter(self) -> StoryData:
         hours = self.base_effort_hours
         if hours is not None and hours % Decimal("0.25") != 0:
-            raise ValueError(f"{label('base_effort_hours')} debe ser múltiplo de 0,25.")
+            raise ValueError(_("%s debe ser múltiplo de 0,25.") % (label("base_effort_hours"),))
         return self
 
 

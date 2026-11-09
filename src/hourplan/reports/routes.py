@@ -18,15 +18,16 @@ from hourplan.projects.models import Project
 from hourplan.reports import compare, dashboard, notes
 from hourplan.reports import export as xlsx
 from hourplan.resources.models import Resource
+from hourplan.shared.i18n import N_, translated
 
 bp = Blueprint("reports", __name__, url_prefix="/informes", template_folder="templates")
 
 MANAGERS = (Role.ADMIN, Role.PM, Role.LEAD)
 PERSONAL = (Role.ADMIN, Role.PM, Role.LEAD, Role.DEVELOPER)
 STATUS_LABELS = {
-    "green": ("En meta", "✓"),
-    "amber": ("Atención", "!"),
-    "red": ("Fuera de meta", "✕"),
+    "green": (N_("En meta"), "✓"),
+    "amber": (N_("Atención"), "!"),
+    "red": (N_("Fuera de meta"), "✕"),
 }
 DEFAULT_MONTHS = 3
 
@@ -65,7 +66,7 @@ def _resource() -> Resource | None:
 
 @bp.app_context_processor
 def _helpers() -> dict[str, object]:
-    return {"status_labels": STATUS_LABELS}
+    return {"status_labels": translated(STATUS_LABELS)}
 
 
 @bp.get("/")

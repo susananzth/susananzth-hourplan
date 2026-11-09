@@ -1,41 +1,41 @@
 {% extends "base.html" %}
-{% block title %}Conexión MCP · HourPlan{% endblock %}
+{% block title %}{{ _("Conexión MCP") }} · HourPlan{% endblock %}
 {% block content %}
 {% set field = 'block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600' %}
-<h1 class="text-2xl font-semibold text-ink">Conectar un cliente de IA</h1>
-<p class="mt-1 text-sm text-ink-muted"><a href="{{ url_for('ailog.index') }}" class="text-brand-700 dark:text-brand-300">Volver a bitácora</a></p>
-<p class="mt-4 max-w-2xl text-sm text-ink">Con un token personal, tu cliente de IA (por ejemplo, Claude Code) puede buscar códigos de proyectos abiertos y <strong>proponer</strong> líneas de horas. No guarda horas por sí solo: las propuestas aparecen en Bitácora para que las revises y confirmes.</p>
-<p class="mt-2 max-w-2xl text-sm text-ink-muted">Lo que el cliente lee (códigos y títulos de proyectos, tus borradores) pasa al servicio de IA que uses. No compartas el token; si se filtra, revócalo.</p>
+<h1 class="text-2xl font-semibold text-ink">{{ _("Conectar un cliente de IA") }}</h1>
+<p class="mt-1 text-sm text-ink-muted"><a href="{{ url_for('ailog.index') }}" class="text-brand-700 dark:text-brand-300">{{ _("Volver a bitácora") }}</a></p>
+<p class="mt-4 max-w-2xl text-sm text-ink">{{ _("Con un token personal, tu cliente de IA (por ejemplo, Claude Code) puede buscar códigos de proyectos abiertos y") }} <strong>{{ _("proponer") }}</strong> {{ _("líneas de horas. No guarda horas por sí solo: las propuestas aparecen en Bitácora para que las revises y confirmes.") }}</p>
+<p class="mt-2 max-w-2xl text-sm text-ink-muted">{{ _("Lo que el cliente lee (códigos y títulos de proyectos, tus borradores) pasa al servicio de IA que uses. No compartas el token; si se filtra, revócalo.") }}</p>
 
 {% if plain %}
 <div role="status" class="mt-6 max-w-2xl rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
-  <p class="font-medium">Copia el token ahora: no se vuelve a mostrar.</p>
-  <label for="token" class="mt-3 block text-sm font-medium">Token</label>
+  <p class="font-medium">{{ _("Copia el token ahora: no se vuelve a mostrar.") }}</p>
+  <label for="token" class="mt-3 block text-sm font-medium">{{ _("Token") }}</label>
   <input id="token" readonly value="{{ plain }}" class="{{ field }} font-mono">
-  <p class="mt-3">Para Claude Code, ejecuta en una terminal:</p>
-  <pre class="mt-1 overflow-x-auto rounded-md bg-surface p-3 font-mono text-xs text-ink">claude mcp add --transport http hourplan {{ endpoint }} --header "Authorization: Bearer {{ plain }}"</pre>
+  <p class="mt-3">{{ _("Para Claude Code, ejecuta en una terminal") }}:</p>
+  <pre class="mt-1 overflow-x-auto rounded-md bg-surface p-3 font-mono text-xs text-ink">{{ "claude mcp add --transport http hourplan" }} {{ endpoint }} {{ '--header "Authorization: Bearer' }} {{ plain }}"</pre>
 </div>
 {% endif %}
 
 <form method="post" action="{{ url_for('ailog.create_token') }}" class="mt-6 max-w-xl space-y-3 rounded-lg border border-line bg-surface-raised p-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <label for="nombre" class="block text-sm font-medium text-ink">Nombre del token</label>
-  <input id="nombre" name="nombre" required maxlength="60" placeholder="Portátil del trabajo" class="{{ field }}">
-  <p class="text-xs text-ink-muted">Vence en {{ days }} días. Máximo 5 tokens activos.</p>
-  <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Crear token</button>
+  <label for="nombre" class="block text-sm font-medium text-ink">{{ _("Nombre del token") }}</label>
+  <input id="nombre" name="nombre" required maxlength="60" placeholder="{{ _('Portátil del trabajo') }}" class="{{ field }}">
+  <p class="text-xs text-ink-muted">{{ _("Vence en %s días. Máximo 5 tokens activos.") | format(days) }}</p>
+  <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">{{ _("Crear token") }}</button>
 </form>
 
-<h2 class="mt-8 text-lg font-semibold text-ink">Tokens activos</h2>
-{% if not tokens %}<p class="mt-2 text-sm text-ink-muted">No tienes tokens activos.</p>{% endif %}
+<h2 class="mt-8 text-lg font-semibold text-ink">{{ _("Tokens activos") }}</h2>
+{% if not tokens %}<p class="mt-2 text-sm text-ink-muted">{{ _("No tienes tokens activos.") }}</p>{% endif %}
 <ul class="mt-3 space-y-2">
 {% for t in tokens %}
   <li class="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface-raised px-4 py-2 text-sm">
     <span class="font-medium text-ink">{{ t.name }}</span>
     <code class="text-ink-muted">{{ t.prefix }}…</code>
-    <span class="text-ink-muted">Vence el {{ t.expires_at.strftime('%d/%m/%Y') }} · {{ 'Usado el ' ~ t.last_used_at.strftime('%d/%m/%Y %H:%M') if t.last_used_at else 'Sin usar' }}</span>
+    <span class="text-ink-muted">{{ _("Vence el") }} {{ t.expires_at.strftime('%d/%m/%Y') }} · {{ _('Usado el %s') | format(t.last_used_at.strftime('%d/%m/%Y %H:%M')) if t.last_used_at else _('Sin usar') }}</span>
     <form method="post" action="{{ url_for('ailog.revoke_token', token_id=t.id) }}" class="ml-auto">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Revocar</button>
+      <button type="submit" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">{{ _("Revocar") }}</button>
     </form>
   </li>
 {% endfor %}

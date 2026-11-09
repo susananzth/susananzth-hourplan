@@ -15,6 +15,7 @@ from hourplan.catalogs.models import CatalogItem, CatalogKind
 from hourplan.extensions import db
 from hourplan.projects.models import Project
 from hourplan.resources.models import Resource
+from hourplan.shared.i18n import _, translated
 from hourplan.shared.labels import validation_message
 from hourplan.timer import alerts, services
 from hourplan.timer.models import AlertSetting, TimerSession
@@ -55,7 +56,7 @@ def _back() -> Response:
 
 def _label(session: Any, timer: TimerSession) -> str:
     if timer.is_interruption and timer.project_id is None and timer.activity_bucket_id is None:
-        return "Interrupción sin clasificar"
+        return _("Interrupción sin clasificar")
     return timesheet.target_label(
         session,
         RowKey(
@@ -104,8 +105,20 @@ def _bar(resource: Resource, *, error: str | None = None, notice: str | None = N
         idle_seconds=services.idle_minutes(db.session, resource.id) * 60,
         alerts=[
             {
-                "title": f"{a.code} ha consumido {a.consumed_pct} % de sus horas",
-                "body": f"{a.title}: superó el umbral de {a.percent} %.",
+                "title": (
+                    _("%s ha consumido %s %% de sus horas")
+                    % (
+                        a.code,
+                        a.consumed_pct,
+                    )
+                ),
+                "body": (
+                    _("%s: superó el umbral de %s %%.")
+                    % (
+                        a.title,
+                        a.percent,
+                    )
+                ),
             }
             for a in found
         ],
@@ -148,7 +161,7 @@ def index() -> str:
         idle_minutes=services.idle_minutes(db.session, resource.id),
         task_types=_task_types(),
         encode_key=encode_key,
-        choices=services.IDLE_CHOICES,
+        choices=translated(services.IDLE_CHOICES),
     )
 
 
@@ -176,7 +189,10 @@ def _saved(entry: TimeEntry | None) -> str | None:
         return None
     hours = f"{entry.hours:.2f}".replace(".", ",")
     key = RowKey(project_id=entry.project_id, activity_bucket_id=entry.activity_bucket_id)
-    return f"Guardado: {timesheet.target_label(db.session, key)} · {hours} h"
+    return _("Guardado: %s · %s h") % (
+        timesheet.target_label(db.session, key),
+        hours,
+    )
 
 
 def _picked() -> RowKey | None:
@@ -210,7 +226,7 @@ def switch() -> Any:
     key = _picked()
     if key is None:
         return _reply(resource, error="Elige la nueva tarea.")
-    entry, _ = _run(
+    entry, _created = _run(
         resource, services.switch, resource.id, key, _now(), actor_id=int(current_user.id)
     )
     return _reply(resource, notice=_saved(entry))
@@ -395,4 +411,4 @@ def save_personal(project_id: int) -> Response:
 
 @bp.app_context_processor
 def _globals() -> dict[str, object]:
-    return {"idle_choices": services.IDLE_CHOICES}
+    return {"idle_choices": translated(services.IDLE_CHOICES)}

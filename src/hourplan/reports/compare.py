@@ -32,10 +32,11 @@ from hourplan.projects.models import (
 )
 from hourplan.reports import rework
 from hourplan.reports.models import Compliance, ComplianceSnapshot
+from hourplan.shared.translate import N_, _
 from hourplan.timesheet.models import TimeEntry
 
 ZERO = Decimal(0)
-NO_CATEGORY = "Sin categoría de origen"
+NO_CATEGORY = N_("Sin categoría de origen")
 
 
 class ReportError(ValueError):
@@ -363,7 +364,7 @@ def rework_by_category(
             select(CatalogItem).where(CatalogItem.id.in_([k for k in totals if k]))
         )
     }
-    rows = [(names.get(k, NO_CATEGORY) if k else NO_CATEGORY, v) for k, v in totals.items()]
+    rows = [(names.get(k, _(NO_CATEGORY)) if k else _(NO_CATEGORY), v) for k, v in totals.items()]
     return sorted(rows, key=lambda row: row[0])
 
 

@@ -1,39 +1,39 @@
 {% extends "base.html" %}
-{% block title %}Alertas de horas · HourPlan{% endblock %}
+{% block title %}{{ _("Alertas de horas") }} · HourPlan{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-semibold text-ink">Alertas de horas</h1>
-<p class="mt-1 text-sm text-ink-muted">Recibes un aviso del navegador cuando un proyecto consume cada porcentaje de sus horas (esfuerzo base más contingencia). Escribe los porcentajes separados por comas; vacío = sin avisos.</p>
+<h1 class="text-2xl font-semibold text-ink">{{ _("Alertas de horas") }}</h1>
+<p class="mt-1 text-sm text-ink-muted">{{ _("Recibes un aviso del navegador cuando un proyecto consume cada porcentaje de sus horas (esfuerzo base más contingencia). Escribe los porcentajes separados por comas; vacío = sin avisos.") }}</p>
 <div class="mt-6 overflow-x-auto rounded-lg border border-line bg-surface-raised">
-  <table aria-label="Alertas" class="w-full text-sm">
-    <thead><tr class="border-b border-line text-left text-ink-muted"><th scope="col" class="px-3 py-2 font-medium">Proyecto</th><th scope="col" class="px-3 py-2 font-medium">Horas</th><th scope="col" class="px-3 py-2 font-medium">Plantilla</th><th scope="col" class="px-3 py-2 font-medium">Mis umbrales</th></tr></thead>
+  <table aria-label="{{ _('Alertas') }}" class="w-full text-sm">
+    <thead><tr class="border-b border-line text-left text-ink-muted"><th scope="col" class="px-3 py-2 font-medium">{{ _("Proyecto") }}</th><th scope="col" class="px-3 py-2 font-medium">{{ _("Horas") }}</th><th scope="col" class="px-3 py-2 font-medium">{{ _("Plantilla") }}</th><th scope="col" class="px-3 py-2 font-medium">{{ _("Mis umbrales") }}</th></tr></thead>
     <tbody>
     {% for row in rows %}
     {% set p = row.project %}
     <tr class="border-b border-line align-top last:border-0">
       <td class="px-3 py-2 text-ink"><span class="font-medium">{{ p.code }}</span><br><span class="text-ink-muted">{{ p.title }}</span></td>
-      <td class="px-3 py-2 text-ink">{{ row.budget if row.budget else 'Sin horas presupuestadas' }}</td>
+      <td class="px-3 py-2 text-ink">{{ row.budget if row.budget else _('Sin horas presupuestadas') }}</td>
       <td class="px-3 py-2">
         {% if row.can_edit %}
         <form method="post" action="{{ url_for('timer.save_template', project_id=p.id) }}" class="flex gap-2">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label class="sr-only" for="p{{ p.id }}">Plantilla de {{ p.code }}</label>
+          <label class="sr-only" for="p{{ p.id }}">{{ _("Plantilla de") }} {{ p.code }}</label>
           <input id="p{{ p.id }}" name="p{{ p.id }}" value="{{ row.template|join(', ') }}" class="w-32 rounded-md border border-line-strong bg-surface px-2 py-1 text-ink">
-          <button type="submit" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Guardar</button>
+          <button type="submit" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">{{ _("Guardar") }}</button>
         </form>
-        {% else %}<span class="text-ink">{{ row.template|join(', ') or 'Sin avisos' }}</span>{% endif %}
+        {% else %}<span class="text-ink">{{ row.template|join(', ') or _('Sin avisos') }}</span>{% endif %}
       </td>
       <td class="px-3 py-2">
         <form method="post" action="{{ url_for('timer.save_personal', project_id=p.id) }}" class="flex flex-wrap gap-2">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label class="sr-only" for="m{{ p.id }}">Mis umbrales en {{ p.code }}</label>
+          <label class="sr-only" for="m{{ p.id }}">{{ _("Mis umbrales en") }} {{ p.code }}</label>
           <input id="m{{ p.id }}" name="m{{ p.id }}" value="{{ (row.personal if row.personal is not none else row.template)|join(', ') }}" class="w-32 rounded-md border border-line-strong bg-surface px-2 py-1 text-ink">
-          <button type="submit" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Guardar</button>
-          {% if row.personal is not none %}<button type="submit" name="accion" value="plantilla" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Usar plantilla</button>{% endif %}
+          <button type="submit" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">{{ _("Guardar") }}</button>
+          {% if row.personal is not none %}<button type="submit" name="accion" value="plantilla" class="rounded-md border border-line-strong bg-surface-raised px-3 py-1.5 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">{{ _("Usar plantilla") }}</button>{% endif %}
         </form>
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="4" class="px-3 py-4 text-ink-muted">Todavía no tienes proyectos con horas.</td></tr>
+    <tr><td colspan="4" class="px-3 py-4 text-ink-muted">{{ _("Todavía no tienes proyectos con horas.") }}</td></tr>
     {% endfor %}
     </tbody>
   </table>

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from hourplan.db import transaction
 from hourplan.projects.models import Project
+from hourplan.shared.translate import _
 from hourplan.timer import services as timer_services
 from hourplan.timer.models import AlertFired, AlertSetting
 from hourplan.timesheet.models import TimeEntry
@@ -32,10 +33,10 @@ def parse_thresholds(raw: str) -> list[int]:
             number = int(part.rstrip("%"))
         except ValueError:
             raise AlertError(
-                f"«{part}» no es un porcentaje. Escribe, por ejemplo, 50, 75, 90."
+                _("«%s» no es un porcentaje. Escribe, por ejemplo, 50, 75, 90.") % (part,)
             ) from None
         if not 1 <= number <= MAX_PERCENT:
-            raise AlertError(f"Cada porcentaje debe estar entre 1 y {MAX_PERCENT}.")
+            raise AlertError(_("Cada porcentaje debe estar entre 1 y %s.") % (MAX_PERCENT,))
         values.add(number)
     return sorted(values)
 

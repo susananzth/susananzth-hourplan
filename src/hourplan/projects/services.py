@@ -23,6 +23,7 @@ from hourplan.projects.models import (
     ProjectPhase,
 )
 from hourplan.shared.labels import label
+from hourplan.shared.translate import _
 
 ENTITY = "project"
 PHASE_ENTITY = "project_phase"
@@ -47,7 +48,7 @@ class DuplicateCodeError(ProjectError):
 
 def _quarter(value: Decimal | None, field: str) -> Decimal | None:
     if value is not None and value % Decimal("0.25") != 0:
-        raise ValueError(f"{label(field)} debe ser múltiplo de 0,25.")
+        raise ValueError(_("%s debe ser múltiplo de 0,25.") % (label(field),))
     return value
 
 
@@ -143,12 +144,12 @@ def _check_references(session: Session, data: ProjectData, own_id: int | None) -
         )
     )
     if taken:
-        raise DuplicateCodeError(f"Ya existe un proyecto con ese {label('code').lower()}.")
+        raise DuplicateCodeError(_("Ya existe un proyecto con ese %s.") % (label("code").lower(),))
     if data.parent_id is not None:
         if data.parent_id == own_id:
             raise ProjectError("Un proyecto no puede ser su propio subproyecto.")
         if session.get(Project, data.parent_id) is None:
-            raise ProjectError(f"{label('parent_id')}: no se encontró ese proyecto.")
+            raise ProjectError(_("%s: no se encontró ese proyecto.") % (label("parent_id"),))
 
 
 def create_project(session: Session, data: ProjectData, *, actor_id: int | None) -> Project:
@@ -186,7 +187,9 @@ def _template(session: Session, template_id: int | None) -> PhaseTemplate | None
     if template_id is not None:
         template = session.get(PhaseTemplate, template_id)
         if template is None or not template.is_active:
-            raise ProjectError(f"{label('phase_template_id')}: no se encontró esa plantilla.")
+            raise ProjectError(
+                _("%s: no se encontró esa plantilla.") % (label("phase_template_id"),)
+            )
         return template
     return session.scalars(
         select(PhaseTemplate).where(PhaseTemplate.is_default, PhaseTemplate.is_active)
@@ -240,7 +243,8 @@ def update_phase(
         )
         if blocker is not None:
             raise ProjectError(
-                f"La fase «{blocker.name}» bloquea las siguientes: termínala u omítela primero."
+                _("La fase «%s» bloquea las siguientes: termínala u omítela primero.")
+                % (blocker.name,)
             )
     values: Mapping[str, Any] = {
         **data.model_dump(),
@@ -284,7 +288,8 @@ def span_warning(session: Session, span: tuple[date, date] | None, today: date) 
     weeks = ((span[1] - span[0]).days + 1) / 7
     if weeks <= policy.max_project_weeks:
         return None
-    return (
-        f"El plan dura {weeks:.1f} semanas y la regla es de {policy.max_project_weeks}. "
+    advice = _(
+        "El plan dura %s semanas y la regla es de %s. "
         "Conviene dividirlo en subproyectos para mostrar avance."
     )
+    return advice % (format(weeks, ".1f"), policy.max_project_weeks)

@@ -1,13 +1,13 @@
 {% macro field(f) %}
 <div>
   {% if f.type == 'BooleanField' %}
-  <label class="flex items-center gap-2 text-sm text-ink">{{ f(class="h-4 w-4 rounded border-line-strong text-brand-600") }} {{ f.label.text }}</label>
+  <label class="flex items-center gap-2 text-sm text-ink">{{ f(class="h-4 w-4 rounded border-line-strong text-brand-600") }} {{ _(f.label.text) }}</label>
   {% else %}
-  {{ f.label(class="mb-1 block text-sm font-medium text-ink") }}
+  <label for="{{ f.id }}" class="mb-1 block text-sm font-medium text-ink">{{ _(f.label.text) }}</label>
   {{ f(class="block w-full rounded-md border border-line-strong bg-surface-raised px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600", **({"aria-invalid": "true", "aria-describedby": f.id ~ "-error"} if f.errors else {})) }}
   {% endif %}
   {% for error in f.errors %}
-  <p id="{{ f.id }}-error" class="mt-1 text-sm text-red-700 dark:text-red-300">{{ error }}</p>
+  <p id="{{ f.id }}-error" class="mt-1 text-sm text-red-700 dark:text-red-300">{{ _(error) }}</p>
   {% endfor %}
 </div>
 {% endmacro %}
@@ -15,10 +15,10 @@
 {% macro toggle(action, active) %}
 <form method="post" action="{{ action }}" class="inline">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <button type="submit" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600">{{ 'Desactivar' if active else 'Activar' }}</button>
+  <button type="submit" class="rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600">{{ _('Desactivar') if active else _('Activar') }}</button>
 </form>
 {% endmacro %}
 
 {% macro badge(active) %}
-<span class="rounded-full border border-line px-2 py-0.5 text-xs {{ 'text-ink' if active else 'text-ink-muted' }}">{{ 'Activo' if active else 'Inactivo' }}</span>
+<span class="rounded-full border border-line px-2 py-0.5 text-xs {{ 'text-ink' if active else 'text-ink-muted' }}">{{ _('Activo') if active else _('Inactivo') }}</span>
 {% endmacro %}

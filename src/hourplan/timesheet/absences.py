@@ -12,6 +12,7 @@ from hourplan.audit.models import AuditAction
 from hourplan.db import transaction
 from hourplan.resources.models import Resource
 from hourplan.shared.labels import label
+from hourplan.shared.translate import _
 from hourplan.timesheet import bank
 from hourplan.timesheet.models import Absence, AbsenceType, ApprovalStatus
 
@@ -48,7 +49,7 @@ class AbsenceData(BaseModel):
     @classmethod
     def _quarter_hours(cls, value: Decimal | None) -> Decimal | None:
         if value is not None and value % Decimal("0.25") != 0:
-            raise ValueError(f"{label('hours_per_day')} debe ser múltiplo de 0,25.")
+            raise ValueError(_("%s debe ser múltiplo de 0,25.") % (label("hours_per_day"),))
         return value
 
     @field_validator("notes")
@@ -60,7 +61,11 @@ class AbsenceData(BaseModel):
     def _dates(self) -> AbsenceData:
         if self.end_on < self.start_on:
             raise ValueError(
-                f"{label('end_on')} no puede ser anterior a {label('start_on').lower()}."
+                _("%s no puede ser anterior a %s.")
+                % (
+                    label("end_on"),
+                    label("start_on").lower(),
+                )
             )
         return self
 

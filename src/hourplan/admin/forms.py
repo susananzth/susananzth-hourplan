@@ -11,6 +11,7 @@ from wtforms import (
 from wtforms.validators import URL, DataRequired, InputRequired, Length, NumberRange, Optional
 
 from hourplan.auth.roles import Role
+from hourplan.shared.i18n import N_
 
 REQUIRED = DataRequired(message="Este campo es obligatorio.")
 CODE = [REQUIRED, Length(max=40)]
@@ -18,11 +19,11 @@ NAME = [REQUIRED, Length(max=120)]
 ORDER = IntegerField("Orden", default=0, validators=[Optional(), NumberRange(-9999, 9999)])
 
 ROLE_LABELS = {
-    Role.ADMIN: "Administración",
-    Role.PM: "Gestión de proyectos",
-    Role.LEAD: "Líder técnico",
-    Role.DEVELOPER: "Desarrollo",
-    Role.OBSERVER: "Solo lectura",
+    Role.ADMIN: N_("Administración"),
+    Role.PM: N_("Gestión de proyectos"),
+    Role.LEAD: N_("Líder técnico"),
+    Role.DEVELOPER: N_("Desarrollo"),
+    Role.OBSERVER: N_("Solo lectura"),
 }
 
 
@@ -67,7 +68,7 @@ class UserForm(FlaskForm):
     )
     role = SelectField(
         "Rol inicial",
-        choices=[("", "Sin rol")] + [(r.value, ROLE_LABELS[r]) for r in Role],
+        choices=[("", N_("Sin rol"))] + [(r.value, ROLE_LABELS[r]) for r in Role],
         default="",
     )
 
@@ -91,10 +92,10 @@ def _pct(label: str) -> DecimalField:
 
 class EvaluationPolicyForm(_PolicyForm):
     colors_enabled = BooleanField("Usar colores", default=True)
-    hours_tolerance_pct = _pct("Tolerancia de horas (%)")
-    hours_red_pct = _pct("Límite rojo de horas (%)")
-    dates_tolerance_pct = _pct("Tolerancia de fechas (%)")
-    dates_red_pct = _pct("Límite rojo de fechas (%)")
+    hours_tolerance_pct = _pct(N_("Tolerancia de horas (%)"))
+    hours_red_pct = _pct(N_("Límite rojo de horas (%)"))
+    dates_tolerance_pct = _pct(N_("Tolerancia de fechas (%)"))
+    dates_red_pct = _pct(N_("Límite rojo de fechas (%)"))
 
 
 class WorkPolicyForm(_PolicyForm):

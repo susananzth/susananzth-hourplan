@@ -21,6 +21,7 @@ from hourplan.auth.permissions import roles_required
 from hourplan.auth.roles import Role
 from hourplan.extensions import db
 from hourplan.resources.models import Resource
+from hourplan.shared.i18n import _
 from hourplan.timesheet.models import EntrySource
 
 bp = Blueprint("ailog", __name__, url_prefix="/bitacora", template_folder="templates")
@@ -52,7 +53,7 @@ def _lines_from_form() -> list[dict[str, Any]]:
     count = min(_int(form.get("n", "0")) or 0, services.MAX_LINES)
     lines: list[dict[str, Any]] = []
     for i in range(count):
-        kind, _, raw = form.get(f"l{i}-destino", "").partition(":")
+        kind, _sep, raw = form.get(f"l{i}-destino", "").partition(":")
         lines.append(
             {
                 "use": form.get(f"l{i}-usar") == "1",
@@ -114,7 +115,7 @@ def discard_pending() -> Any:
     if not _mcp_on():
         abort(404)
     count = services.discard_pending(db.session, _resource().id)
-    flash(f"Se descartaron {count} líneas propuestas.", "success")
+    flash((_("Se descartaron %s líneas propuestas.") % (count,)), "success")
     return redirect(url_for("ailog.index"))
 
 
@@ -145,7 +146,7 @@ def create_token() -> Any:
         abort(404)
     _resource()
     try:
-        _, plain = services.create_token(
+        _token, plain = services.create_token(
             db.session,
             int(current_user.id),
             request.form.get("nombre", ""),
@@ -232,5 +233,5 @@ def confirm() -> Any:
         db.session.rollback()
         flash(str(err), "error")
         return _page(kind, lines, 400)
-    flash(f"Se guardaron {saved} entradas de horas.", "success")
+    flash((_("Se guardaron %s entradas de horas.") % (saved,)), "success")
     return redirect(url_for("timesheet.week"))

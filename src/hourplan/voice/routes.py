@@ -21,6 +21,7 @@ from hourplan.auth.permissions import roles_required
 from hourplan.auth.roles import Role
 from hourplan.extensions import db, limiter
 from hourplan.resources.models import Resource
+from hourplan.shared.i18n import _
 from hourplan.voice import services
 from hourplan.voice.models import DictationStatus, VoiceDictation
 from hourplan.voice.setup import enabled
@@ -141,7 +142,7 @@ def _lines_from_form() -> list[dict[str, Any]]:
     lines: list[dict[str, Any]] = []
     for i in range(count):
         target = form.get(f"l{i}-destino", "")
-        kind, _, raw = target.partition(":")
+        kind, _sep, raw = target.partition(":")
         lines.append(
             {
                 "use": form.get(f"l{i}-usar") == "1",
@@ -180,7 +181,7 @@ def confirm(dictation_id: int) -> Response | tuple[str, int]:
         return render_template(
             "voice/show.html", item=item, status=_render_status(item, lines)
         ), 400
-    flash(f"Se guardaron {saved} entradas de horas.", "success")
+    flash((_("Se guardaron %s entradas de horas.") % (saved,)), "success")
     return redirect(url_for("timesheet.week"))
 
 

@@ -8,6 +8,7 @@ from hourplan.audit.models import AuditAction
 from hourplan.auth.models import User
 from hourplan.db import transaction
 from hourplan.resources.models import Resource
+from hourplan.shared.translate import _
 
 
 class ResourceError(ValueError):
@@ -45,7 +46,9 @@ def link_user(
     """
     current = session.scalar(select(Resource).where(Resource.user_id == user.id))
     if current is not None:
-        raise ResourceError(f"Este usuario ya está vinculado al recurso {current.display_name}.")
+        raise ResourceError(
+            _("Este usuario ya está vinculado al recurso %s.") % (current.display_name,)
+        )
     wanted = (name or user.display_name).strip()
     if not wanted:
         raise ResourceError("Indica el nombre del recurso.")
@@ -54,7 +57,9 @@ def link_user(
             select(Resource).where(func.lower(Resource.display_name) == wanted.lower())
         )
         if resource is not None and resource.user_id is not None:
-            raise ResourceError(f"El recurso {resource.display_name} ya tiene otro usuario.")
+            raise ResourceError(
+                _("El recurso %s ya tiene otro usuario.") % (resource.display_name,)
+            )
         created = resource is None
         if resource is None:
             resource = Resource(display_name=wanted)

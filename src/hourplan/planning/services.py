@@ -24,6 +24,7 @@ from hourplan.policies.models import WorkPolicy
 from hourplan.projects.models import Project, ProjectPhase
 from hourplan.resources.models import Resource
 from hourplan.shared.labels import label
+from hourplan.shared.translate import _
 from hourplan.timesheet.models import Absence, ApprovalStatus
 from hourplan.timesheet.services import working_days
 
@@ -55,14 +56,18 @@ class AllocationData(BaseModel):
     @classmethod
     def _quarter_hours(cls, value: Decimal) -> Decimal:
         if value % Decimal("0.25") != 0:
-            raise ValueError(f"{label('hours')} debe ser múltiplo de 0,25.")
+            raise ValueError(_("%s debe ser múltiplo de 0,25.") % (label("hours"),))
         return value
 
     @model_validator(mode="after")
     def _dates(self) -> AllocationData:
         if self.end_on < self.start_on:
             raise ValueError(
-                f"{label('end_on')} no puede ser anterior a {label('start_on').lower()}."
+                _("%s no puede ser anterior a %s.")
+                % (
+                    label("end_on"),
+                    label("start_on").lower(),
+                )
             )
         return self
 
@@ -218,13 +223,15 @@ def replan(
 def _check_allocation(session: Session, project_id: int, data: AllocationData) -> None:
     resource = session.get(Resource, data.resource_id)
     if resource is None or not resource.is_active:
-        raise PlanError(f"{label('resource_id')}: no se encontró esa persona.")
+        raise PlanError(_("%s: no se encontró esa persona.") % (label("resource_id"),))
     if data.project_phase_id is not None:
         phase = session.get(ProjectPhase, data.project_phase_id)
         if phase is None or phase.project_id != project_id:
-            raise PlanError(f"{label('project_phase_id')}: esa fase no es de este proyecto.")
+            raise PlanError(
+                _("%s: esa fase no es de este proyecto.") % (label("project_phase_id"),)
+            )
     if data.application_id is not None and session.get(Application, data.application_id) is None:
-        raise PlanError(f"{label('application_id')}: no se encontró esa aplicación.")
+        raise PlanError(_("%s: no se encontró esa aplicación.") % (label("application_id"),))
 
 
 def add_allocation(

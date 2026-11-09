@@ -76,7 +76,7 @@
   }
 
   function upload(wav) {
-    say("Enviando el dictado…");
+    say(window.hpT("Enviando el dictado…"));
     return fetch(root.dataset.uploadUrl, {
       method: "POST",
       headers: { "X-CSRFToken": csrf(), "Content-Type": "audio/wav" },
@@ -84,7 +84,7 @@
       credentials: "same-origin"
     }).then(function (response) {
       return response.json().then(function (body) {
-        if (!response.ok) { throw new Error(body.error || "No se pudo enviar el dictado."); }
+        if (!response.ok) { throw new Error(body.error || window.hpT("No se pudo enviar el dictado.")); }
         window.location.href = body.url;
       });
     });
@@ -94,20 +94,20 @@
     var blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
     chunks = [];
     release();
-    if (cancelled) { say("Dictado cancelado."); return; }
-    say("Preparando el audio…");
+    if (cancelled) { say(window.hpT("Dictado cancelado.")); return; }
+    say(window.hpT("Preparando el audio…"));
     toWav(blob).then(upload).catch(function (err) {
-      say(err && err.message ? err.message : "No se pudo procesar el audio.");
+      say(err && err.message ? err.message : window.hpT("No se pudo procesar el audio."));
     });
   }
 
   function start() {
     if (!navigator.mediaDevices || !window.MediaRecorder) {
-      say("Este navegador no permite grabar. Usa una versión reciente de Chrome, Edge o Firefox.");
+      say(window.hpT("Este navegador no permite grabar. Usa una versión reciente de Chrome, Edge o Firefox."));
       return;
     }
     if (!window.isSecureContext) {
-      say("El micrófono solo funciona en HTTPS o en localhost.");
+      say(window.hpT("El micrófono solo funciona en HTTPS o en localhost."));
       return;
     }
     cancelled = false;
@@ -121,7 +121,7 @@
         recorder.start();
         startedAt = Date.now();
         show(true);
-        say("Grabando… di fecha, horas, proyecto o actividad y qué hiciste.");
+        say(window.hpT("Grabando… di fecha, horas, proyecto o actividad y qué hiciste."));
         timer = setInterval(function () {
           var seconds = Math.floor((Date.now() - startedAt) / 1000);
           clock.textContent = pad(Math.floor(seconds / 60)) + ":" + pad(seconds % 60);
@@ -129,7 +129,7 @@
         }, 250);
       })
       .catch(function () {
-        say("No se pudo usar el micrófono. Revisa el permiso del navegador.");
+        say(window.hpT("No se pudo usar el micrófono. Revisa el permiso del navegador."));
       });
   }
 

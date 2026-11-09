@@ -1,30 +1,30 @@
 {% extends "base.html" %}
-{% block title %}Plan de {{ project.code }} · HourPlan{% endblock %}
+{% block title %}{{ _("Plan de") }} {{ project.code }} · HourPlan{% endblock %}
 {% block content %}
 {% set input = "rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
 {% set primary = "rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600" %}
 {% set quiet = "rounded-md px-3 py-1.5 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600" %}
 <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
-  <h1 class="text-2xl font-semibold text-ink">Plan · {{ project.code }} · {{ project.title }}</h1>
-  <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="{{ quiet }}">Volver al proyecto</a>
+  <h1 class="text-2xl font-semibold text-ink">{{ _("Plan") }} · {{ project.code }} · {{ project.title }}</h1>
+  <a href="{{ url_for('projects.detail', project_id=project.id) }}" class="{{ quiet }}">{{ _("Volver al proyecto") }}</a>
 </div>
 <p class="mb-4 text-sm text-ink-muted">
-  {% if version %}Versión {{ version.number }}{% if version.label %} ({{ version.label }}){% endif %}{% if version.is_baseline %} · <strong class="text-ink">línea base</strong>{% endif %}
-  · {{ total }} h asignadas{% if span %} · del {{ span[0].strftime('%d/%m/%Y') }} al {{ span[1].strftime('%d/%m/%Y') }}{% endif %}
-  {% else %}Sin plan todavía: la primera asignación crea la versión 1.{% endif %}
+  {% if version %}{{ _("Versión") }} {{ version.number }}{% if version.label %} ({{ version.label }}){% endif %}{% if version.is_baseline %} · <strong class="text-ink">{{ _("línea base") }}</strong>{% endif %}
+  · {{ total }} {{ _("h asignadas") }}{% if span %} · {{ _("del %s al %s") | format(span[0].strftime('%d/%m/%Y'), span[1].strftime('%d/%m/%Y')) }}{% endif %}
+  {% else %}{{ _("Sin plan todavía: la primera asignación crea la versión 1.") }}{% endif %}
 </p>
 {% if warning %}<p role="status" class="mb-4 rounded-md border border-line-strong bg-surface-raised p-3 text-sm text-ink">{{ warning }}</p>{% endif %}
 
 <div class="mb-6 overflow-x-auto rounded-lg border border-line bg-surface-raised">
-  <table aria-label="Plan" class="w-full text-left text-sm">
+  <table aria-label="{{ _('Plan') }}" class="w-full text-left text-sm">
     <thead class="border-b border-line text-ink-muted"><tr>
-      <th scope="col" class="px-4 py-2 font-medium">Persona</th>
-      <th scope="col" class="px-4 py-2 font-medium">Fase</th>
-      <th scope="col" class="px-4 py-2 font-medium">Aplicación</th>
-      <th scope="col" class="px-4 py-2 font-medium">Desde</th>
-      <th scope="col" class="px-4 py-2 font-medium">Hasta</th>
-      <th scope="col" class="px-4 py-2 text-right font-medium">Horas</th>
-      {% if can_edit and version and not version.is_baseline %}<th scope="col" class="px-4 py-2"><span class="sr-only">Acciones</span></th>{% endif %}
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Persona") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Fase") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Aplicación") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Desde") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Hasta") }}</th>
+      <th scope="col" class="px-4 py-2 text-right font-medium">{{ _("Horas") }}</th>
+      {% if can_edit and version and not version.is_baseline %}<th scope="col" class="px-4 py-2"><span class="sr-only">{{ _("Acciones") }}</span></th>{% endif %}
     </tr></thead>
     <tbody>
       {% for a in rows %}
@@ -37,11 +37,11 @@
         <td class="px-4 py-2 text-right text-ink">{{ a.hours }}</td>
         {% if can_edit and not version.is_baseline %}
         <td class="px-4 py-2 text-right"><form method="post" action="{{ url_for('planning.remove_allocation', project_id=project.id, allocation_id=a.id) }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="{{ quiet }}">Quitar</button></form></td>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="{{ quiet }}">{{ _("Quitar") }}</button></form></td>
         {% endif %}
       </tr>
       {% else %}
-      <tr><td colspan="7" class="px-4 py-6 text-center text-ink-muted">Aún no hay horas asignadas.</td></tr>
+      <tr><td colspan="7" class="px-4 py-6 text-center text-ink-muted">{{ _("Aún no hay horas asignadas.") }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -51,40 +51,40 @@
 {% if version and version.is_baseline %}
 <form method="post" action="{{ url_for('planning.replan', project_id=project.id) }}" class="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-line bg-surface-raised p-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <p class="w-full text-sm text-ink-muted">La línea base no se modifica. Para cambiar el plan, crea una replanificación: copia esta versión y la deja editable.</p>
-  <div class="min-w-72 flex-1"><label for="motivo" class="mb-1 block text-sm font-medium text-ink">Motivo de la replanificación</label>
+  <p class="w-full text-sm text-ink-muted">{{ _("La línea base no se modifica. Para cambiar el plan, crea una replanificación: copia esta versión y la deja editable.") }}</p>
+  <div class="min-w-72 flex-1"><label for="motivo" class="mb-1 block text-sm font-medium text-ink">{{ _("Motivo de la replanificación") }}</label>
     <input id="motivo" name="motivo" required maxlength="1000" class="block w-full {{ input }}"></div>
-  <button type="submit" class="{{ primary }}">Replanificar</button>
+  <button type="submit" class="{{ primary }}">{{ _("Replanificar") }}</button>
 </form>
 {% else %}
 <section aria-labelledby="asignar" class="mb-6">
-  <h2 id="asignar" class="mb-3 text-lg font-semibold text-ink">Asignar horas</h2>
+  <h2 id="asignar" class="mb-3 text-lg font-semibold text-ink">{{ _("Asignar horas") }}</h2>
   <form method="post" action="{{ url_for('planning.add_allocation', project_id=project.id) }}" class="grid gap-4 rounded-lg border border-line bg-surface-raised p-4 sm:grid-cols-2 lg:grid-cols-3">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div><label for="persona" class="mb-1 block text-sm font-medium text-ink">Persona</label>
-      <select id="persona" name="persona" required class="block w-full {{ input }}"><option value="">Elige…</option>
+    <div><label for="persona" class="mb-1 block text-sm font-medium text-ink">{{ _("Persona") }}</label>
+      <select id="persona" name="persona" required class="block w-full {{ input }}"><option value="">{{ _("Elige…") }}</option>
         {% for r in resources %}<option value="{{ r.id }}">{{ r.display_name }}</option>{% endfor %}</select></div>
-    <div><label for="fase" class="mb-1 block text-sm font-medium text-ink">Fase</label>
-      <select id="fase" name="fase" class="block w-full {{ input }}"><option value="">Sin fase</option>
+    <div><label for="fase" class="mb-1 block text-sm font-medium text-ink">{{ _("Fase") }}</label>
+      <select id="fase" name="fase" class="block w-full {{ input }}"><option value="">{{ _("Sin fase") }}</option>
         {% for id, name in phases.items() %}<option value="{{ id }}">{{ name }}</option>{% endfor %}</select></div>
-    <div><label for="aplicacion" class="mb-1 block text-sm font-medium text-ink">Aplicación</label>
-      <select id="aplicacion" name="aplicacion" class="block w-full {{ input }}"><option value="">Sin aplicación</option>
+    <div><label for="aplicacion" class="mb-1 block text-sm font-medium text-ink">{{ _("Aplicación") }}</label>
+      <select id="aplicacion" name="aplicacion" class="block w-full {{ input }}"><option value="">{{ _("Sin aplicación") }}</option>
         {% for a in applications %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select></div>
-    <div><label for="desde" class="mb-1 block text-sm font-medium text-ink">Desde</label>
+    <div><label for="desde" class="mb-1 block text-sm font-medium text-ink">{{ _("Desde") }}</label>
       <input id="desde" name="desde" type="date" required value="{{ today.isoformat() }}" class="block w-full {{ input }}"></div>
-    <div><label for="hasta" class="mb-1 block text-sm font-medium text-ink">Hasta</label>
+    <div><label for="hasta" class="mb-1 block text-sm font-medium text-ink">{{ _("Hasta") }}</label>
       <input id="hasta" name="hasta" type="date" required value="{{ today.isoformat() }}" class="block w-full {{ input }}"></div>
-    <div><label for="horas" class="mb-1 block text-sm font-medium text-ink">Horas en total</label>
+    <div><label for="horas" class="mb-1 block text-sm font-medium text-ink">{{ _("Horas en total") }}</label>
       <input id="horas" name="horas" required inputmode="decimal" autocomplete="off" class="block w-full {{ input }}"></div>
-    <div class="sm:col-span-2 lg:col-span-3"><button type="submit" class="{{ primary }}">Agregar al plan</button></div>
+    <div class="sm:col-span-2 lg:col-span-3"><button type="submit" class="{{ primary }}">{{ _("Agregar al plan") }}</button></div>
   </form>
 </section>
 {% if version and rows %}
 <form method="post" action="{{ url_for('planning.set_baseline', project_id=project.id) }}" class="mb-6 flex flex-wrap items-center gap-3">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   {% if not versions | selectattr('is_baseline') | list %}
-  <button type="submit" class="{{ primary }}">Fijar como línea base</button>
-  <span class="text-sm text-ink-muted">Congela esta versión para comparar luego el plan con lo real.</span>
+  <button type="submit" class="{{ primary }}">{{ _("Fijar como línea base") }}</button>
+  <span class="text-sm text-ink-muted">{{ _("Congela esta versión para comparar luego el plan con lo real.") }}</span>
   {% endif %}
 </form>
 {% endif %}
@@ -92,9 +92,9 @@
 {% endif %}
 
 {% if versions | length > 1 %}
-<h2 class="mb-3 text-lg font-semibold text-ink">Historial de versiones</h2>
+<h2 class="mb-3 text-lg font-semibold text-ink">{{ _("Historial de versiones") }}</h2>
 <ul class="space-y-1 text-sm text-ink">
-  {% for v in versions %}<li>Versión {{ v.number }}{% if v.is_baseline %} · línea base{% endif %} · {{ v.created_at.strftime('%d/%m/%Y') }}{% if v.reason %} · {{ v.reason }}{% endif %}</li>{% endfor %}
+  {% for v in versions %}<li>{{ _("Versión") }} {{ v.number }}{% if v.is_baseline %} · {{ _("línea base") }}{% endif %} · {{ v.created_at.strftime('%d/%m/%Y') }}{% if v.reason %} · {{ v.reason }}{% endif %}</li>{% endfor %}
 </ul>
 {% endif %}
 {% endblock %}

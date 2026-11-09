@@ -1,24 +1,24 @@
 {% extends "base.html" %}
 {% from "admin/_macros.html" import toggle, badge %}
-{% block title %}Catálogos · HourPlan{% endblock %}
+{% block title %}{{ _("Catálogos") }} · HourPlan{% endblock %}
 {% block content %}
 <div class="mb-6 flex items-center justify-between">
-  <h1 class="text-2xl font-semibold text-ink">Catálogos</h1>
-  <a href="{{ url_for('admin.catalog_new', kind=kind.value) }}" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Nuevo</a>
+  <h1 class="text-2xl font-semibold text-ink">{{ _("Catálogos") }}</h1>
+  <a href="{{ url_for('admin.catalog_new', kind=kind.value) }}" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">{{ _("Nuevo") }}</a>
 </div>
-<nav aria-label="Tipos de catálogo" class="mb-4 flex flex-wrap gap-2">
+<nav aria-label="{{ _('Tipos de catálogo') }}" class="mb-4 flex flex-wrap gap-2">
   {% for k, label in kinds.items() %}
   <a href="{{ url_for('admin.catalog_list', kind=k.value) }}" class="rounded-full border px-3 py-1 text-sm {{ 'border-brand-600 bg-brand-600 text-white' if k == kind else 'border-line text-ink-muted hover:text-ink' }}"{% if k == kind %} aria-current="page"{% endif %}>{{ label }}</a>
   {% endfor %}
 </nav>
 <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
-  <table aria-label="Catálogo" class="w-full text-left text-sm">
+  <table aria-label="{{ _('Catálogo') }}" class="w-full text-left text-sm">
     <thead class="border-b border-line text-ink-muted"><tr>
-      <th scope="col" class="px-4 py-2 font-medium">Código</th>
-      <th scope="col" class="px-4 py-2 font-medium">Nombre</th>
-      <th scope="col" class="px-4 py-2 font-medium">Orden</th>
-      <th scope="col" class="px-4 py-2 font-medium">Estado</th>
-      <th scope="col" class="px-4 py-2"><span class="sr-only">Acciones</span></th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Código") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Nombre") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Orden") }}</th>
+      <th scope="col" class="px-4 py-2 font-medium">{{ _("Estado") }}</th>
+      <th scope="col" class="px-4 py-2"><span class="sr-only">{{ _("Acciones") }}</span></th>
     </tr></thead>
     <tbody>
       {% for item in items %}
@@ -28,12 +28,12 @@
         <td class="px-4 py-2 text-ink">{{ item.sort_order }}</td>
         <td class="px-4 py-2">{{ badge(item.is_active) }}</td>
         <td class="whitespace-nowrap px-4 py-2 text-right">
-          <a href="{{ url_for('admin.catalog_edit', item_id=item.id) }}" class="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">Editar</a>
+          <a href="{{ url_for('admin.catalog_edit', item_id=item.id) }}" class="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">{{ _("Editar") }}</a>
           {{ toggle(url_for('admin.catalog_toggle', item_id=item.id), item.is_active) }}
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="5" class="px-4 py-6 text-center text-ink-muted">Todavía no hay valores.</td></tr>
+      <tr><td colspan="5" class="px-4 py-6 text-center text-ink-muted">{{ _("Todavía no hay valores.") }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

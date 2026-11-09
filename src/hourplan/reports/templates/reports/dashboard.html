@@ -1,42 +1,42 @@
 {% extends "base.html" %}
 {% from "reports/_macros.html" import period, tile, hours_table, legend %}
-{% block title %}Panel de horas · HourPlan{% endblock %}
+{% block title %}{{ _("Panel de horas") }} · HourPlan{% endblock %}
 {% block content %}
 {% include "reports/_tabs.html" %}
 <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
-  <h1 class="text-2xl font-semibold text-ink">Panel de horas</h1>
+  <h1 class="text-2xl font-semibold text-ink">{{ _("Panel de horas") }}</h1>
   <div class="flex flex-wrap items-end gap-3">
     {{ period(start, end) }}
-    <a href="{{ url_for('reports.export_dashboard', desde=start.isoformat(), hasta=end.isoformat()) }}" class="rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-ink hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Descargar Excel</a>
+    <a href="{{ url_for('reports.export_dashboard', desde=start.isoformat(), hasta=end.isoformat()) }}" class="rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-ink hover:bg-surface-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">{{ _("Descargar Excel") }}</a>
   </div>
 </div>
-<p class="mb-4 text-sm text-ink-muted">Estadística de horas, no un ranking: las filas van en orden alfabético o cronológico. Rework = lo que una ronda de verificación o aprobación devolvió a construcción, más las correcciones manuales.</p>
+<p class="mb-4 text-sm text-ink-muted">{{ _("Estadística de horas, no un ranking: las filas van en orden alfabético o cronológico. Rework = lo que una ronda de verificación o aprobación devolvió a construcción, más las correcciones manuales.") }}</p>
 <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-  {{ tile("Horas registradas", '%.2f' | format(totals.hours) ~ ' h') }}
-  {{ tile("Rework", '%.2f' | format(totals.rework) ~ ' h', ('%.1f' | format(totals.rework_share) ~ ' % de las horas') if totals.rework_share is not none else none) }}
-  {{ tile("Absorbidas por contingencias", '%.2f' | format(totals.contingency) ~ ' h', 'Incidentes, reuniones improvisadas y consultas de otras áreas') }}
-  {{ tile("Proyectos cerrados en el período", totals.closed.green + totals.closed.amber + totals.closed.red + totals.closed.none, totals.closed.green ~ ' en meta · ' ~ totals.closed.amber ~ ' con atención · ' ~ totals.closed.red ~ ' fuera de meta') }}
+  {{ tile(_("Horas registradas"), '%.2f' | format(totals.hours) ~ ' h') }}
+  {{ tile(_("Rework"), '%.2f' | format(totals.rework) ~ ' h', ('%.1f' | format(totals.rework_share) ~ _(' % de las horas')) if totals.rework_share is not none else none) }}
+  {{ tile(_("Absorbidas por contingencias"), '%.2f' | format(totals.contingency) ~ ' h', _('Incidentes, reuniones improvisadas y consultas de otras áreas')) }}
+  {{ tile(_("Proyectos cerrados en el período"), totals.closed.green + totals.closed.amber + totals.closed.red + totals.closed.none, _('%s en meta · %s con atención · %s fuera de meta') | format(totals.closed.green, totals.closed.amber, totals.closed.red)) }}
 </div>
 {{ legend() }}
 {% for dim, name, rows in tables %}
 <section aria-labelledby="t-{{ dim }}" class="mb-6">
-  <h2 id="t-{{ dim }}" class="mb-3 text-lg font-semibold text-ink">Por {{ name | lower }}</h2>
-  {{ hours_table(name, rows) }}
+  <h2 id="t-{{ dim }}" class="mb-3 text-lg font-semibold text-ink">{{ _("Por %s") | format(_(name) | lower) }}</h2>
+  {{ hours_table(_(name), rows) }}
 </section>
 {% endfor %}
 <section aria-labelledby="t-origen" class="mb-6">
-  <h2 id="t-origen" class="mb-3 text-lg font-semibold text-ink">Rework por categoría de origen</h2>
+  <h2 id="t-origen" class="mb-3 text-lg font-semibold text-ink">{{ _("Rework por categoría de origen") }}</h2>
   <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
-    <table aria-label="Resumen" class="w-full text-left text-sm">
+    <table aria-label="{{ _('Resumen') }}" class="w-full text-left text-sm">
       <thead class="border-b border-line text-ink-muted"><tr>
-        <th scope="col" class="px-4 py-2 font-medium">Categoría</th>
-        <th scope="col" class="px-4 py-2 text-right font-medium">Horas</th>
+        <th scope="col" class="px-4 py-2 font-medium">{{ _("Categoría") }}</th>
+        <th scope="col" class="px-4 py-2 text-right font-medium">{{ _("Horas") }}</th>
       </tr></thead>
       <tbody>
         {% for name, hours in categories %}
         <tr class="border-b border-line last:border-0"><th scope="row" class="px-4 py-2 font-medium text-ink">{{ name }}</th><td class="px-4 py-2 text-right text-ink">{{ '%.2f' | format(hours) }}</td></tr>
         {% else %}
-        <tr><td colspan="2" class="px-4 py-6 text-center text-ink-muted">No hay rework en este período.</td></tr>
+        <tr><td colspan="2" class="px-4 py-6 text-center text-ink-muted">{{ _("No hay rework en este período.") }}</td></tr>
         {% endfor %}
       </tbody>
     </table>

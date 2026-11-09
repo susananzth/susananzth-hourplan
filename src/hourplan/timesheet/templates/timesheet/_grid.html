@@ -1,10 +1,10 @@
 <section id="grilla" aria-labelledby="titulo-semana">
   <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-    <h1 id="titulo-semana" class="text-2xl font-semibold text-ink">Mis horas · semana del {{ start.strftime('%d/%m/%Y') }}</h1>
-    <nav aria-label="Semanas" class="flex gap-2 text-sm">
-      <a href="{{ url_for('timesheet.week', semana=previous.isoformat(), extra=extras) }}" class="rounded-md border border-line-strong px-3 py-1.5 text-ink hover:bg-surface-raised">← Anterior</a>
-      <a href="{{ url_for('timesheet.week', extra=extras) }}" class="rounded-md border border-line-strong px-3 py-1.5 text-ink hover:bg-surface-raised">Esta semana</a>
-      <a href="{{ url_for('timesheet.week', semana=following.isoformat(), extra=extras) }}" class="rounded-md border border-line-strong px-3 py-1.5 text-ink hover:bg-surface-raised">Siguiente →</a>
+    <h1 id="titulo-semana" class="text-2xl font-semibold text-ink">{{ _("Mis horas · semana del") }} {{ start.strftime('%d/%m/%Y') }}</h1>
+    <nav aria-label="{{ _('Semanas') }}" class="flex gap-2 text-sm">
+      <a href="{{ url_for('timesheet.week', semana=previous.isoformat(), extra=extras) }}" class="rounded-md border border-line-strong px-3 py-1.5 text-ink hover:bg-surface-raised">{{ _("← Anterior") }}</a>
+      <a href="{{ url_for('timesheet.week', extra=extras) }}" class="rounded-md border border-line-strong px-3 py-1.5 text-ink hover:bg-surface-raised">{{ _("Esta semana") }}</a>
+      <a href="{{ url_for('timesheet.week', semana=following.isoformat(), extra=extras) }}" class="rounded-md border border-line-strong px-3 py-1.5 text-ink hover:bg-surface-raised">{{ _("Siguiente →") }}</a>
     </nav>
   </div>
 
@@ -14,18 +14,18 @@
   </div>
 
   <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
-    <table aria-label="Horas de la semana" class="w-full text-left text-sm">
+    <table aria-label="{{ _('Horas de la semana') }}" class="w-full text-left text-sm">
       <thead class="border-b border-line text-ink-muted">
         <tr>
-          <th scope="col" class="px-4 py-2 font-medium">Proyecto o actividad</th>
+          <th scope="col" class="px-4 py-2 font-medium">{{ _("Proyecto o actividad") }}</th>
           {% for summary in grid.summaries %}
           <th scope="col" class="px-2 py-2 text-center font-medium">
-            {{ ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][loop.index0] }} {{ summary.day.strftime('%d/%m') }}
-            {% if summary.holiday %}<span class="block text-xs font-normal">Feriado: {{ summary.holiday }}</span>{% endif %}
-            {% if summary.absence %}<span class="block text-xs font-normal">Ausencia {{ summary.absence }} h</span>{% endif %}
+            {{ [_('Lun'),_('Mar'),_('Mié'),_('Jue'),_('Vie'),_('Sáb'),_('Dom')][loop.index0] }} {{ summary.day.strftime('%d/%m') }}
+            {% if summary.holiday %}<span class="block text-xs font-normal">{{ _("Feriado") }}: {{ summary.holiday }}</span>{% endif %}
+            {% if summary.absence %}<span class="block text-xs font-normal">{{ _("Ausencia") }} {{ summary.absence }} h</span>{% endif %}
           </th>
           {% endfor %}
-          <th scope="col" class="px-4 py-2 text-right font-medium">Total</th>
+          <th scope="col" class="px-4 py-2 text-right font-medium">{{ _("Total") }}</th>
         </tr>
       </thead>
       <tbody>
@@ -37,21 +37,21 @@
               <input type="hidden" name="semana" value="{{ start.isoformat() }}">
               {% for e in extras %}<input type="hidden" name="extra" value="{{ e }}">{% endfor %}
               {% set is_fav = encode_key(row.key) in favorite_keys %}
-              <button type="submit" aria-pressed="{{ 'true' if is_fav else 'false' }}" aria-label="{{ 'Quitar de favoritos' if is_fav else 'Marcar como favorito' }}: {{ row.label }}" class="rounded text-lg leading-none text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600">{{ '★' if is_fav else '☆' }}</button>
+              <button type="submit" aria-pressed="{{ 'true' if is_fav else 'false' }}" aria-label="{{ _('Quitar de favoritos') if is_fav else _('Marcar como favorito') }}: {{ row.label }}" class="rounded text-lg leading-none text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600">{{ '★' if is_fav else '☆' }}</button>
               <span>{{ row.label }}</span>
             </form>
           </th>
           {% for cell in row.cells %}
           <td class="px-1 py-1 text-center">
             {% if cell.multiple %}
-            <span class="inline-block w-16 px-2 py-1 text-ink" title="Varias entradas en este día">{{ cell.hours }} ✱</span>
+            <span class="inline-block w-16 px-2 py-1 text-ink" title="{{ _('Varias entradas en este día') }}">{{ cell.hours }} ✱</span>
             {% else %}
             <form hx-post="{{ url_for('timesheet.cell') }}" hx-target="#grilla" hx-swap="outerHTML" hx-trigger="change">
               <input type="hidden" name="fila" value="{{ encode_key(row.key) }}">
               <input type="hidden" name="dia" value="{{ cell.day.isoformat() }}">
               <input type="hidden" name="semana" value="{{ start.isoformat() }}">
               {% for e in extras %}<input type="hidden" name="extra" value="{{ e }}">{% endfor %}
-              <input name="horas" inputmode="decimal" autocomplete="off" aria-label="Horas de {{ row.label }} el {{ cell.day.strftime('%d/%m') }}" value="{{ cell.hours if cell.hours else '' }}" class="w-16 rounded-md border border-line-strong bg-surface px-2 py-1 text-center text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
+              <input name="horas" inputmode="decimal" autocomplete="off" aria-label="{{ _('Horas de %s el %s') | format(row.label, cell.day.strftime('%d/%m')) }}" value="{{ cell.hours if cell.hours else '' }}" class="w-16 rounded-md border border-line-strong bg-surface px-2 py-1 text-center text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
             </form>
             {% endif %}
           </td>
@@ -59,16 +59,16 @@
           <td class="px-4 py-2 text-right font-medium text-ink">{{ row.total }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="9" class="px-4 py-6 text-center text-ink-muted">Todavía no hay horas esta semana. Agrega una fila o repite un día.</td></tr>
+        <tr><td colspan="9" class="px-4 py-6 text-center text-ink-muted">{{ _("Todavía no hay horas esta semana. Agrega una fila o repite un día.") }}</td></tr>
         {% endfor %}
       </tbody>
       <tfoot class="border-t border-line text-ink">
         <tr>
-          <th scope="row" class="px-4 py-2 font-medium">Total del día</th>
+          <th scope="row" class="px-4 py-2 font-medium">{{ _("Total del día") }}</th>
           {% for summary in grid.summaries %}
           <td class="px-2 py-2 text-center font-medium">
             {{ summary.worked }}
-            {% if summary.over_warning %}<span class="block text-xs font-normal text-amber-700 dark:text-amber-300">⚠ pasa de {{ summary.warning_at }} h</span>{% endif %}
+            {% if summary.over_warning %}<span class="block text-xs font-normal text-amber-700 dark:text-amber-300">{{ _("⚠ pasa de") }} {{ summary.warning_at }} h</span>{% endif %}
           </td>
           {% endfor %}
           <td class="px-4 py-2 text-right font-semibold">{{ grid.total }}</td>
@@ -81,26 +81,26 @@
     <form hx-post="{{ url_for('timesheet.add_row') }}" hx-target="#grilla" hx-swap="outerHTML" class="rounded-lg border border-line bg-surface-raised p-4">
       <input type="hidden" name="semana" value="{{ start.isoformat() }}">
       {% for e in extras %}<input type="hidden" name="extra" value="{{ e }}">{% endfor %}
-      <label for="buscar" class="mb-1 block text-sm font-medium text-ink">Agregar fila</label>
-      <input id="buscar" type="search" name="q" autocomplete="off" placeholder="Código, título o actividad" hx-get="{{ url_for('timesheet.search') }}" hx-trigger="input changed delay:300ms, search" hx-target="#resultados" hx-swap="innerHTML" aria-controls="resultados" class="block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
+      <label for="buscar" class="mb-1 block text-sm font-medium text-ink">{{ _("Agregar fila") }}</label>
+      <input id="buscar" type="search" name="q" autocomplete="off" placeholder="{{ _('Código, título o actividad') }}" hx-get="{{ url_for('timesheet.search') }}" hx-trigger="input changed delay:300ms, search" hx-target="#resultados" hx-swap="innerHTML" aria-controls="resultados" class="block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
       <ul id="resultados" class="mt-2 max-h-60 overflow-y-auto"></ul>
     </form>
 
     <form hx-post="{{ url_for('timesheet.repeat') }}" hx-target="#grilla" hx-swap="outerHTML" class="rounded-lg border border-line bg-surface-raised p-4">
       <input type="hidden" name="semana" value="{{ start.isoformat() }}">
       {% for e in extras %}<input type="hidden" name="extra" value="{{ e }}">{% endfor %}
-      <label for="dia-repetir" class="mb-1 block text-sm font-medium text-ink">Repetir el último día con horas en</label>
+      <label for="dia-repetir" class="mb-1 block text-sm font-medium text-ink">{{ _("Repetir el último día con horas en") }}</label>
       <div class="flex gap-2">
         <select id="dia-repetir" name="dia" class="block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
-          {% for summary in grid.summaries[:5] %}<option value="{{ summary.day.isoformat() }}"{% if summary.day == today %} selected{% endif %}>{{ ['Lunes','Martes','Miércoles','Jueves','Viernes'][loop.index0] }} {{ summary.day.strftime('%d/%m') }}</option>{% endfor %}
+          {% for summary in grid.summaries[:5] %}<option value="{{ summary.day.isoformat() }}"{% if summary.day == today %} selected{% endif %}>{{ [_('Lunes'),_('Martes'),_('Miércoles'),_('Jueves'),_('Viernes')][loop.index0] }} {{ summary.day.strftime('%d/%m') }}</option>{% endfor %}
         </select>
-        <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Repetir</button>
+        <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">{{ _("Repetir") }}</button>
       </div>
     </form>
   </div>
   <div class="mt-6 grid gap-6 md:grid-cols-2">
     <section aria-labelledby="titulo-favoritos" class="rounded-lg border border-line bg-surface-raised p-4">
-      <h2 id="titulo-favoritos" class="mb-2 text-sm font-medium text-ink">Favoritos</h2>
+      <h2 id="titulo-favoritos" class="mb-2 text-sm font-medium text-ink">{{ _("Favoritos") }}</h2>
       <form hx-post="{{ url_for('timesheet.add_row') }}" hx-target="#grilla" hx-swap="outerHTML">
         <input type="hidden" name="semana" value="{{ start.isoformat() }}">
         {% for e in extras %}<input type="hidden" name="extra" value="{{ e }}">{% endfor %}
@@ -108,40 +108,40 @@
           {% for fav in favorites %}
           <li><button type="submit" name="nueva" value="{{ encode_key(fav.key) }}" class="block w-full rounded-md px-3 py-2 text-left text-sm text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">{{ fav.label }}</button></li>
           {% else %}
-          <li class="px-3 py-2 text-sm text-ink-muted">Marca con ☆ las filas que uses seguido.</li>
+          <li class="px-3 py-2 text-sm text-ink-muted">{{ _("Marca con ☆ las filas que uses seguido.") }}</li>
           {% endfor %}
         </ul>
       </form>
     </section>
 
     <section aria-labelledby="titulo-plantillas" class="rounded-lg border border-line bg-surface-raised p-4">
-      <h2 id="titulo-plantillas" class="mb-2 text-sm font-medium text-ink">Plantillas de día</h2>
+      <h2 id="titulo-plantillas" class="mb-2 text-sm font-medium text-ink">{{ _("Plantillas de día") }}</h2>
       {% if templates %}
       <form hx-post="{{ url_for('timesheet.template_apply') }}" hx-target="#grilla" hx-swap="outerHTML" class="mb-3 flex flex-wrap gap-2">
         <input type="hidden" name="semana" value="{{ start.isoformat() }}">
         {% for e in extras %}<input type="hidden" name="extra" value="{{ e }}">{% endfor %}
-        <label class="sr-only" for="plantilla">Plantilla</label>
+        <label class="sr-only" for="plantilla">{{ _("Plantilla") }}</label>
         <select id="plantilla" name="plantilla" class="rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
           {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
         </select>
-        <label class="sr-only" for="dia-plantilla">Día</label>
+        <label class="sr-only" for="dia-plantilla">{{ _("Día") }}</label>
         <select id="dia-plantilla" name="dia" class="rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
-          {% for summary in grid.summaries[:5] %}<option value="{{ summary.day.isoformat() }}"{% if summary.day == today %} selected{% endif %}>{{ ['Lun','Mar','Mié','Jue','Vie'][loop.index0] }} {{ summary.day.strftime('%d/%m') }}</option>{% endfor %}
+          {% for summary in grid.summaries[:5] %}<option value="{{ summary.day.isoformat() }}"{% if summary.day == today %} selected{% endif %}>{{ [_('Lun'),_('Mar'),_('Mié'),_('Jue'),_('Vie')][loop.index0] }} {{ summary.day.strftime('%d/%m') }}</option>{% endfor %}
         </select>
-        <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Aplicar</button>
-        <button type="submit" hx-post="{{ url_for('timesheet.template_delete') }}" hx-confirm="¿Borrar la plantilla seleccionada?" class="rounded-md px-3 py-2 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600">Borrar</button>
+        <button type="submit" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">{{ _("Aplicar") }}</button>
+        <button type="submit" hx-post="{{ url_for('timesheet.template_delete') }}" hx-confirm="¿Borrar la plantilla seleccionada?" class="rounded-md px-3 py-2 text-sm font-medium text-ink-muted hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-600">{{ _("Borrar") }}</button>
       </form>
       {% endif %}
       <form hx-post="{{ url_for('timesheet.template_save') }}" hx-target="#grilla" hx-swap="outerHTML" class="flex flex-wrap gap-2">
         <input type="hidden" name="semana" value="{{ start.isoformat() }}">
         {% for e in extras %}<input type="hidden" name="extra" value="{{ e }}">{% endfor %}
-        <label class="sr-only" for="nombre-plantilla">Nombre de la plantilla</label>
-        <input id="nombre-plantilla" name="nombre" maxlength="80" placeholder="Nombre de la plantilla" class="rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
-        <label class="sr-only" for="dia-guardar">Día a guardar</label>
+        <label class="sr-only" for="nombre-plantilla">{{ _("Nombre de la plantilla") }}</label>
+        <input id="nombre-plantilla" name="nombre" maxlength="80" placeholder="{{ _('Nombre de la plantilla') }}" class="rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
+        <label class="sr-only" for="dia-guardar">{{ _("Día a guardar") }}</label>
         <select id="dia-guardar" name="dia" class="rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600">
-          {% for summary in grid.summaries[:5] %}<option value="{{ summary.day.isoformat() }}"{% if summary.day == today %} selected{% endif %}>{{ ['Lun','Mar','Mié','Jue','Vie'][loop.index0] }} {{ summary.day.strftime('%d/%m') }}</option>{% endfor %}
+          {% for summary in grid.summaries[:5] %}<option value="{{ summary.day.isoformat() }}"{% if summary.day == today %} selected{% endif %}>{{ [_('Lun'),_('Mar'),_('Mié'),_('Jue'),_('Vie')][loop.index0] }} {{ summary.day.strftime('%d/%m') }}</option>{% endfor %}
         </select>
-        <button type="submit" class="rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">Guardar día como plantilla</button>
+        <button type="submit" class="rounded-md border border-line-strong px-4 py-2 text-sm font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-brand-600">{{ _("Guardar día como plantilla") }}</button>
       </form>
     </section>
   </div>

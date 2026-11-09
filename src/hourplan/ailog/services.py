@@ -21,6 +21,7 @@ from hourplan.catalogs.models import Application, CatalogItem, CatalogKind
 from hourplan.projects.models import Project
 from hourplan.resources.models import Resource
 from hourplan.shared.labels import validation_message
+from hourplan.shared.translate import _
 from hourplan.timesheet import services as timesheet
 from hourplan.timesheet.models import EntrySource, TimeEntry
 from hourplan.timesheet.services import EntryData
@@ -127,14 +128,16 @@ def draft_from_log(session: Session, resource_id: int, rows: list[LogRow]) -> li
         elif found:
             line["project_id"] = found[0].id
             line["notes"].append(
-                f"El código {row.code} existe como proyecto y como ticket; revisa."
+                _("El código %s existe como proyecto y como ticket; revisa.") % (row.code,)
             )
         else:
             line["use"] = False
-            line["notes"].append(f"No se encontró el código «{row.code}»: elige el proyecto.")
+            line["notes"].append(
+                _("No se encontró el código «%s»: elige el proyecto.") % (row.code,)
+            )
         if _already_saved(session, resource_id, row.work_date, row.hours, row.description):
             line["use"] = False
-            line["notes"].append("Parece ya guardada antes; márcala si quieres repetirla.")
+            line["notes"].append(_("Parece ya guardada antes; márcala si quieres repetirla."))
         lines.append(line)
     return lines
 
@@ -150,10 +153,10 @@ def draft_from_calendar(
         if bucket is not None:
             line["activity_bucket_id"] = bucket.id
         else:
-            line["notes"].append("No hay actividad «Reunión»: elige a dónde van estas horas.")
+            line["notes"].append(_("No hay actividad «Reunión»: elige a dónde van estas horas."))
         if _already_saved(session, resource_id, meeting.work_date, meeting.hours, meeting.title):
             line["use"] = False
-            line["notes"].append("Parece ya guardada antes; márcala si quieres repetirla.")
+            line["notes"].append(_("Parece ya guardada antes; márcala si quieres repetirla."))
         lines.append(line)
     return lines
 
@@ -184,7 +187,13 @@ def build_entries(rows: list[dict[str, Any]]) -> list[EntryData]:
             )
         except (ValidationError, ValueError, AilogError) as err:
             message = validation_message(err) if isinstance(err, ValidationError) else str(err)
-            raise AilogError(f"Línea {number}: {message}") from err
+            raise AilogError(
+                _("Línea %s: %s")
+                % (
+                    number,
+                    message,
+                )
+            ) from err
     if not entries:
         raise AilogError("Marca al menos una línea para guardar.")
     return entries
@@ -218,7 +227,13 @@ def confirm(
             timesheet.create_entry(session, resource_id, data, actor_id=actor_id, source=source)
         except timesheet.EntryError as err:
             session.rollback()
-            raise AilogError(f"Línea {number}: {err}") from err
+            raise AilogError(
+                _("Línea %s: %s")
+                % (
+                    number,
+                    err,
+                )
+            ) from err
     return len(entries)
 
 
@@ -251,7 +266,7 @@ def create_token(
     if not name or len(name) > 60:
         raise AilogError("Ponle un nombre de 1 a 60 caracteres (por ejemplo, «Portátil»).")
     if len(active_tokens(session, user_id, now)) >= MAX_TOKENS:
-        raise AilogError(f"Ya tienes {MAX_TOKENS} tokens activos; revoca uno antes.")
+        raise AilogError(_("Ya tienes %s tokens activos; revoca uno antes.") % (MAX_TOKENS,))
     plain = TOKEN_PREFIX + secrets.token_urlsafe(32)
     token = AccessToken(
         user_id=user_id,
@@ -336,17 +351,17 @@ def search_projects(session: Session, text: str, limit: int = 20) -> list[Projec
 
 def _proposed(number: int, raw: Any) -> AiDraft:
     if not isinstance(raw, dict):
-        raise AilogError(f"Línea {number}: debe ser un objeto.")
+        raise AilogError(_("Línea %s: debe ser un objeto.") % (number,))
     try:
         work_date = date.fromisoformat(str(raw.get("fecha", "")))
     except ValueError as err:
-        raise AilogError(f"Línea {number}: la fecha debe ser AAAA-MM-DD.") from err
+        raise AilogError(_("Línea %s: la fecha debe ser AAAA-MM-DD.") % (number,)) from err
     code = str(raw.get("codigo", "")).strip()
     if not code or len(code) > 40:
-        raise AilogError(f"Línea {number}: falta el código del proyecto o ticket.")
+        raise AilogError(_("Línea %s: falta el código del proyecto o ticket.") % (number,))
     minutes = raw.get("minutos")
     if isinstance(minutes, bool) or not isinstance(minutes, int) or not 1 <= minutes <= 1440:
-        raise AilogError(f"Línea {number}: los minutos deben ser un entero entre 1 y 1440.")
+        raise AilogError(_("Línea %s: los minutos deben ser un entero entre 1 y 1440.") % (number,))
     description = str(raw.get("descripcion") or "").strip()[:2000] or None
     return AiDraft(
         work_date=work_date,
@@ -361,7 +376,7 @@ def propose(session: Session, caller: Caller, lines: Any) -> int:
     if not isinstance(lines, list) or not lines:
         raise AilogError("Envía al menos una línea en «lineas».")
     if len(lines) > MAX_PROPOSED:
-        raise AilogError(f"Envía como máximo {MAX_PROPOSED} líneas por llamada.")
+        raise AilogError(_("Envía como máximo %s líneas por llamada.") % (MAX_PROPOSED,))
     drafts = [_proposed(number, raw) for number, raw in enumerate(lines, start=1)]
     if len(pending_drafts(session, caller.resource_id)) + len(drafts) > MAX_PENDING:
         raise AilogError("Hay demasiados borradores sin revisar; pide a la persona que los revise.")

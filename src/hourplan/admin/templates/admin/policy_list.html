@@ -1,27 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Políticas · HourPlan{% endblock %}
+{% block title %}{{ _("Políticas") }} · HourPlan{% endblock %}
 {% block content %}
-<h1 class="mb-2 text-2xl font-semibold text-ink">Políticas</h1>
-<p class="mb-8 max-w-2xl text-sm text-ink-muted">Las políticas vigentes no se editan: una versión nueva rige desde su fecha y el historial queda intacto. Las programadas a futuro sí se pueden reemplazar.</p>
+<h1 class="mb-2 text-2xl font-semibold text-ink">{{ _("Políticas") }}</h1>
+<p class="mb-8 max-w-2xl text-sm text-ink-muted">{{ _("Las políticas vigentes no se editan: una versión nueva rige desde su fecha y el historial queda intacto. Las programadas a futuro sí se pueden reemplazar.") }}</p>
 {% for section in sections %}
 <section class="mb-10" aria-labelledby="{{ section.slug }}">
   <div class="mb-3 flex items-center justify-between">
     <h2 id="{{ section.slug }}" class="text-lg font-semibold text-ink">{{ section.title }}</h2>
-    <a href="{{ url_for('admin.policy_new', slug=section.slug) }}" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Nueva versión</a>
+    <a href="{{ url_for('admin.policy_new', slug=section.slug) }}" class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">{{ _("Nueva versión") }}</a>
   </div>
   <div class="space-y-3">
     {% for version, values, current, future in section.versions %}
     <div class="rounded-lg border border-line bg-surface-raised p-4">
-      <p class="text-sm font-medium text-ink">Desde {{ version.effective_from.strftime('%d/%m/%Y') }}
-        {% if current %}<span class="ml-2 rounded-full border border-brand-600 px-2 py-0.5 text-xs text-brand-700 dark:text-brand-300">Vigente</span>{% elif future %}<span class="ml-2 rounded-full border border-line px-2 py-0.5 text-xs text-ink-muted">Programada</span>{% endif %}</p>
+      <p class="text-sm font-medium text-ink">{{ _("Desde") }} {{ version.effective_from.strftime('%d/%m/%Y') }}
+        {% if current %}<span class="ml-2 rounded-full border border-brand-600 px-2 py-0.5 text-xs text-brand-700 dark:text-brand-300">{{ _("Vigente") }}</span>{% elif future %}<span class="ml-2 rounded-full border border-line px-2 py-0.5 text-xs text-ink-muted">{{ _("Programada") }}</span>{% endif %}</p>
       <dl class="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         {% for label, value in values %}
-        <div class="flex justify-between gap-4"><dt class="text-ink-muted">{{ label }}</dt><dd class="text-ink">{{ ('Sí' if value else 'No') if value is boolean else value }}</dd></div>
+        <div class="flex justify-between gap-4"><dt class="text-ink-muted">{{ _(label) }}</dt><dd class="text-ink">{{ (_('Sí') if value else _('No')) if value is boolean else value }}</dd></div>
         {% endfor %}
       </dl>
     </div>
     {% else %}
-    <p class="text-sm text-ink-muted">Todavía no hay versiones.</p>
+    <p class="text-sm text-ink-muted">{{ _("Todavía no hay versiones.") }}</p>
     {% endfor %}
   </div>
 </section>

@@ -42,7 +42,7 @@ def create_app(config_name: str | None = None, overrides: dict[str, Any] | None 
     extensions.limiter.init_app(app)
     extensions.login_manager.init_app(app)
     extensions.login_manager.login_view = "auth.login"
-    extensions.login_manager.login_message = "Inicia sesión para continuar."
+    extensions.login_manager.login_message = i18n.N_("Inicia sesión para continuar.")
     extensions.login_manager.localize_callback = i18n._
     i18n.init_app(app)
     extensions.login_manager.session_protection = "strong"

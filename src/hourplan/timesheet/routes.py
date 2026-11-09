@@ -12,6 +12,7 @@ from hourplan.auth.permissions import roles_required
 from hourplan.auth.roles import Role
 from hourplan.extensions import db
 from hourplan.resources.models import Resource
+from hourplan.shared.i18n import _
 from hourplan.shared.labels import label, validation_message
 from hourplan.timesheet import services
 from hourplan.timesheet.services import RowKey
@@ -61,7 +62,7 @@ def _hours(raw: str) -> Decimal:
     try:
         return Decimal(raw)
     except InvalidOperation:
-        raise ValueError(f"{label('hours')}: escribe un número, por ejemplo 1,5.") from None
+        raise ValueError(_("%s: escribe un número, por ejemplo 1,5.") % (label("hours"),)) from None
 
 
 def _int(raw: str | None) -> int:
@@ -134,7 +135,11 @@ def cell() -> str:
         return _render(resource, error=_cell_error(err))
     notice = None
     if summary.over_warning:
-        notice = f"El {day:%d/%m} suma {summary.worked} h: pasa de {summary.warning_at} h."
+        notice = _("El %s suma %s h: pasa de %s h.") % (
+            format(day, "%d/%m"),
+            summary.worked,
+            summary.warning_at,
+        )
     return _render(resource, notice=notice)
 
 

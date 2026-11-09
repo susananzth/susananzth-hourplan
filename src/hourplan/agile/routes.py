@@ -18,7 +18,7 @@ from hourplan.catalogs.models import CatalogKind
 from hourplan.extensions import db
 from hourplan.projects.methodology import profile_of
 from hourplan.projects.models import EpicStatus, Project, SprintStatus
-from hourplan.shared.i18n import _
+from hourplan.shared.i18n import N_, _
 from hourplan.shared.labels import label, validation_message
 
 bp = Blueprint(
@@ -29,7 +29,7 @@ VIEWERS = (Role.ADMIN, Role.PM, Role.LEAD, Role.DEVELOPER, Role.OBSERVER)
 EDITORS = (Role.ADMIN, Role.PM, Role.LEAD)
 # Developers move their own work along the board but do not plan it.
 MOVERS = (*EDITORS, Role.DEVELOPER)
-SPRINT_STATUS = {"planned": "Planificado", "active": "Activo", "closed": "Cerrado"}
+SPRINT_STATUS = {"planned": N_("Planificado"), "active": N_("Activo"), "closed": N_("Cerrado")}
 
 
 def _int(raw: str | None) -> int | None:
@@ -54,7 +54,7 @@ def _hours(raw: str | None) -> Decimal | None:
         return Decimal(raw)
     except InvalidOperation:
         raise ValueError(
-            f"{label('base_effort_hours')}: escribe un número, por ejemplo 8 o 2,5."
+            _("%s: escribe un número, por ejemplo 8 o 2,5.") % (label("base_effort_hours"),)
         ) from None
 
 
@@ -62,7 +62,7 @@ def _day(raw: str | None, field: str) -> date:
     try:
         return date.fromisoformat((raw or "").strip())
     except ValueError:
-        raise ValueError(f"{label(field)}: la fecha no es válida.") from None
+        raise ValueError(_("%s: la fecha no es válida.") % (label(field),)) from None
 
 
 def _project(project_id: int, feature: str | None = None) -> Project:
