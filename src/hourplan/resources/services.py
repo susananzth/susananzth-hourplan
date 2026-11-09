@@ -14,6 +14,27 @@ class ResourceError(ValueError):
     pass
 
 
+def resource_of(session: Session, user: User) -> Resource | None:
+    return session.scalar(select(Resource).where(Resource.user_id == user.id))
+
+
+def resources_by_user(session: Session) -> dict[int, Resource]:
+    """Resource of each linked user, keyed by user id."""
+    rows = session.scalars(select(Resource).where(Resource.user_id.is_not(None)))
+    return {r.user_id: r for r in rows if r.user_id is not None}
+
+
+def free_resources(session: Session) -> list[Resource]:
+    """Active resources without an account (for example the ones created by an import)."""
+    return list(
+        session.scalars(
+            select(Resource)
+            .where(Resource.user_id.is_(None), Resource.is_active)
+            .order_by(func.lower(Resource.display_name), Resource.id)
+        )
+    )
+
+
 def link_user(
     session: Session, user: User, name: str | None = None, *, actor_id: int | None
 ) -> Resource:

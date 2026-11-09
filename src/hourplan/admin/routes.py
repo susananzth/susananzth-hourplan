@@ -26,6 +26,8 @@ from hourplan.catalogs.models import (
 from hourplan.extensions import db
 from hourplan.policies import services as policies
 from hourplan.policies.models import EvaluationPolicy, WorkPolicy
+from hourplan.resources import services as resources
+from hourplan.resources.models import Resource
 from hourplan.shared.labels import validation_message
 
 bp = Blueprint("admin", __name__, url_prefix="/admin", template_folder="templates")
@@ -132,7 +134,13 @@ def _save(action: Callable[[], object], back: str) -> Response | None:
     """Run a service call; return a redirect on success or ``None`` after flashing the error."""
     try:
         action()
-    except (catalogs.CatalogError, auth.AuthError, policies.PolicyError, ValidationError) as err:
+    except (
+        catalogs.CatalogError,
+        auth.AuthError,
+        policies.PolicyError,
+        resources.ResourceError,
+        ValidationError,
+    ) as err:
         db.session.rollback()
         _fail(err)
         return None
@@ -475,7 +483,11 @@ def _simple_list(title: str, headers: list[str], rows: list[Any], prefix: str) -
 @bp.get("/usuarios")
 @roles_required(Role.ADMIN)
 def user_list() -> str:
-    return render_template("admin/user_list.html", users=auth.list_users(db.session))
+    return render_template(
+        "admin/user_list.html",
+        users=auth.list_users(db.session),
+        linked=resources.resources_by_user(db.session),
+    )
 
 
 @bp.route("/usuarios/nuevo", methods=["GET", "POST"])
@@ -505,13 +517,33 @@ def user_new() -> Response | str:
 @roles_required(Role.ADMIN)
 def user_detail(user_id: int) -> str:
     user = _get_or_404(User, user_id)
+    free = resources.free_resources(db.session)
+    link_form = forms.ResourceLinkForm()
+    link_form.resource_id.choices = [(0, "— Ninguno —")] + [(r.id, r.display_name) for r in free]
     return render_template(
         "admin/user_detail.html",
         user=user,
         form=forms.RoleForm(),
+        link_form=link_form,
+        resource=resources.resource_of(db.session, user),
+        has_free=bool(free),
         labels=forms.ROLE_LABELS,
         roles=sorted(user.roles),
     )
+
+
+@bp.post("/usuarios/<int:user_id>/recurso")
+@roles_required(Role.ADMIN)
+def user_link_resource(user_id: int) -> Response:
+    user = _get_or_404(User, user_id)
+    form = forms.ResourceLinkForm()
+    if form.validate_on_submit():
+        chosen = db.session.get(Resource, form.resource_id.data) if form.resource_id.data else None
+        name = chosen.display_name if chosen else _text(form.name).strip() or None
+        _save(lambda: resources.link_user(db.session, user, name, actor_id=_actor()), "")
+    else:
+        flash("No se pudo vincular: revisa el formulario.", "error")
+    return redirect(url_for("admin.user_detail", user_id=user.id))
 
 
 @bp.post("/usuarios/<int:user_id>/roles")

@@ -384,3 +384,77 @@ def test_developer_sees_only_their_own_report(
     assert "PJ-00001" in page
     assert "Ambiente caído" in page
     assert "48.0" in page
+
+
+# ------------------------------------------------------------------ Excel exports
+
+
+def _workbook(response: TestResponse):
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    assert "attachment" in response.headers["Content-Disposition"]
+    return load_workbook(BytesIO(response.data))
+
+
+def test_managers_download_the_dashboard_and_projects_as_excel(
+    client: FlaskClient, session: Session, make_user: MakeUser, login: Login, world: World
+) -> None:
+    sign_in(session, make_user, login, Role.PM)
+
+    panel = _workbook(client.get("/informes/exportar/panel.xlsx?desde=2026-07-01&hasta=2026-07-31"))
+    assert panel.sheetnames[0] == "Resumen"
+    assert {"Persona", "Aplicación", "Tipo de tarea", "Mes", "Rework por origen"} <= set(
+        panel.sheetnames
+    )
+    summary = {row[0].value: row[1].value for row in panel["Resumen"].iter_rows(min_row=2)}
+    assert summary["Horas registradas"] == 48
+    assert summary["Rework (horas)"] == 16
+
+    plans = _workbook(client.get("/informes/exportar/proyectos.xlsx"))
+    row = [c.value for c in plans["Plan contra real"][2]]
+    assert row[0] == "PJ-00001"
+    assert row[3] == 40
+    assert row[4] == 48
+
+
+def test_excel_text_cannot_run_as_a_formula(
+    client: FlaskClient, session: Session, make_user: MakeUser, login: Login, world: World
+) -> None:
+    world.project.title = "=HYPERLINK(1)"
+    session.commit()
+    sign_in(session, make_user, login, Role.LEAD)
+
+    plans = _workbook(client.get("/informes/exportar/proyectos.xlsx"))
+
+    cell = plans["Plan contra real"]["B2"]
+    assert cell.data_type == "s"
+    assert cell.value == "'=HYPERLINK(1)"
+
+
+def test_developer_downloads_only_their_own_report(
+    client: FlaskClient, session: Session, make_user: MakeUser, login: Login, world: World
+) -> None:
+    user = sign_in(session, make_user, login, Role.DEVELOPER)
+    assert client.get("/informes/exportar/panel.xlsx").status_code == 403
+    assert client.get("/informes/exportar/proyectos.xlsx").status_code == 403
+    assert client.get("/informes/exportar/mio.xlsx").status_code == 404  # not linked yet
+
+    world.resource.user_id = user.id
+    session.commit()
+    notes.add_note(session, world.project.id, "Ambiente caído", actor_id=None)
+    mine = _workbook(client.get("/informes/exportar/mio.xlsx?desde=2026-07-01&hasta=2026-07-31"))
+
+    assert mine.sheetnames == [
+        "Resumen",
+        "Plan contra real",
+        "Mes",
+        "Tipo de tarea",
+        "Notas de desvío",
+    ]
+    assert mine["Notas de desvío"]["C2"].value == "Ambiente caído"
+    summary = {row[0].value: row[1].value for row in mine["Resumen"].iter_rows(min_row=2)}
+    assert summary["Horas registradas"] == 48

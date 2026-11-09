@@ -76,6 +76,11 @@ class RoleForm(FlaskForm):
     role = SelectField("Rol", choices=[(r.value, ROLE_LABELS[r]) for r in Role])
 
 
+class ResourceLinkForm(FlaskForm):
+    resource_id = SelectField("Recurso existente", coerce=int, validate_choice=False, default=0)
+    name = StringField("o nombre del recurso nuevo", validators=[Optional(), Length(max=120)])
+
+
 class _PolicyForm(FlaskForm):
     effective_from = DateField("Vigente desde", validators=[InputRequired("Elige una fecha.")])
 

@@ -12,6 +12,7 @@
       <th scope="col" class="px-4 py-2 font-medium">Nombre</th>
       <th scope="col" class="px-4 py-2 font-medium">Correo</th>
       <th scope="col" class="px-4 py-2 font-medium">Roles</th>
+      <th scope="col" class="px-4 py-2 font-medium">Recurso</th>
       <th scope="col" class="px-4 py-2 font-medium">Estado</th>
       <th scope="col" class="px-4 py-2"><span class="sr-only">Acciones</span></th>
     </tr></thead>
@@ -21,6 +22,7 @@
         <td class="px-4 py-2 text-ink">{{ user.display_name }}</td>
         <td class="px-4 py-2 text-ink">{{ user.email }}</td>
         <td class="px-4 py-2 text-ink">{{ user.roles|sort|join(', ') or '—' }}</td>
+        <td class="px-4 py-2 text-ink">{% if user.id in linked %}{{ linked[user.id].display_name }}{% else %}<span class="text-ink-muted">Sin vincular</span>{% endif %}</td>
         <td class="px-4 py-2">{{ badge(user.is_active) }}</td>
         <td class="px-4 py-2 text-right"><a href="{{ url_for('admin.user_detail', user_id=user.id) }}" class="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">Gestionar</a></td>
       </tr>

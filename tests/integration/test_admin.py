@@ -318,3 +318,61 @@ def test_schedule_policy_from_screen(
     listing = client.get("/admin/politicas").get_data(as_text=True)
     assert "Programada" in listing
     assert client.get("/admin/politicas/otra/nueva").status_code == 404
+
+
+# ------------------------------------------------------------------ link a user to a resource
+
+
+def test_admin_links_a_user_to_a_free_resource_and_to_a_new_one(
+    client: FlaskClient, session: Session, make_user: MakeUser, login: Login
+) -> None:
+    from hourplan.resources.models import Resource
+
+    sign_in(session, make_user, login, Role.ADMIN)
+    free = Resource(display_name="Persona Importada")
+    session.add(free)
+    session.commit()
+    first, second = make_user(), make_user()
+    page = f"/admin/usuarios/{first.id}"
+    assert "Persona Importada" in client.get(page).get_data(as_text=True)
+
+    done = post(client, f"{page}/recurso", {"resource_id": free.id, "name": ""}, page)
+    assert done.status_code == 302
+    session.refresh(free)
+    assert free.user_id == first.id
+    assert "Vinculado al recurso" in client.get(page).get_data(as_text=True)
+    listing = client.get("/admin/usuarios").get_data(as_text=True)
+    assert "Persona Importada" in listing
+    assert "Sin vincular" in listing
+
+    other = f"/admin/usuarios/{second.id}"
+    post(client, f"{other}/recurso", {"resource_id": 0, "name": "Nombre Nuevo"}, other)
+    created = session.query(Resource).filter_by(display_name="Nombre Nuevo").one()
+    assert created.user_id == second.id
+
+
+def test_linking_twice_is_refused_with_a_message(
+    client: FlaskClient, session: Session, make_user: MakeUser, login: Login
+) -> None:
+    sign_in(session, make_user, login, Role.ADMIN)
+    user = make_user()
+    page = f"/admin/usuarios/{user.id}"
+    post(client, f"{page}/recurso", {"resource_id": 0, "name": "Una Persona"}, page)
+
+    again = post(client, f"{page}/recurso", {"resource_id": 0, "name": "Otra"}, page)
+    followed = client.get(again.headers["Location"]).get_data(as_text=True)
+
+    assert "Vinculado al recurso" in followed
+    assert "Otra" not in followed
+
+
+def test_only_admin_can_link_resources(
+    client: FlaskClient, session: Session, make_user: MakeUser, login: Login
+) -> None:
+    sign_in(session, make_user, login, Role.PM)
+    user = make_user()
+    token = csrf_token(client, "/admin/aplicaciones")
+    denied = client.post(
+        f"/admin/usuarios/{user.id}/recurso", data={"name": "X", "csrf_token": token}
+    )
+    assert denied.status_code == 403
