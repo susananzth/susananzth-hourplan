@@ -20,5 +20,8 @@
     </label>
     <button type="submit" class="w-full rounded-md bg-brand-600 px-4 py-2.5 font-medium text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Entrar</button>
   </form>
+  {% if sso %}
+  <a href="{{ url_for('auth.sso_start') }}" class="mt-4 block w-full rounded-md border border-line-strong bg-surface-raised px-4 py-2.5 text-center font-medium text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">Entrar con la cuenta de la organización</a>
+  {% endif %}
 </div>
 {% endblock %}

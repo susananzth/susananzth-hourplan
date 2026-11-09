@@ -59,6 +59,9 @@ class BaseConfig:
     MCP_TOKEN_DAYS = 90
     MCP_RATE_LIMIT = "120 per minute"
 
+    # Optional single sign-on (OpenID Connect); on when issuer, client id and secret are set.
+    OIDC_SCOPES = "openid email profile"
+
     RATELIMIT_HEADERS_ENABLED = True
     LOGIN_RATE_LIMIT = "5 per minute"
 
@@ -86,6 +89,10 @@ class BaseConfig:
             "VOICE_LLM_TIMEOUT": _float_env("VOICE_LLM_TIMEOUT"),
             "VOICE_MAX_SECONDS": _float_env("VOICE_MAX_SECONDS"),
             "MCP_ENABLED": _bool_env("MCP_ENABLED"),
+            "OIDC_ISSUER": os.environ.get("OIDC_ISSUER"),
+            "OIDC_CLIENT_ID": os.environ.get("OIDC_CLIENT_ID"),
+            "OIDC_CLIENT_SECRET": os.environ.get("OIDC_CLIENT_SECRET"),
+            "OIDC_SCOPES": os.environ.get("OIDC_SCOPES"),
         }
         return {key: value for key, value in env.items() if value is not None}
 
@@ -119,6 +126,8 @@ class TestingConfig(DevelopmentConfig):
         env.pop("VOICE_STT_URL", None)
         env.pop("VOICE_LLM_URL", None)
         env.pop("MCP_ENABLED", None)
+        for key in ("OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET"):
+            env.pop(key, None)
         return env
 
 
