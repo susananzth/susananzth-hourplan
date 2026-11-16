@@ -1,3 +1,5 @@
+import re
+
 from playwright.sync_api import Page, expect
 
 from conftest import SHOTS, shot
@@ -62,25 +64,42 @@ def test_tables_page_search_and_speak_english(logged: Page) -> None:
         logged.fill("#codigo", f"PJ-91{n:03d}")
         logged.fill("#titulo", f"Tabla larga {n}")
         logged.get_by_role("button", name="Guardar").click()
+    # Projects grow without end: the server cuts the pages.
     logged.goto("/proyectos")
     table = logged.get_by_role("table", name="Proyectos")
     pager = logged.get_by_role("navigation", name="Paginación de la tabla")
-    expect(table.locator("tbody tr:visible")).to_have_count(10)
+    expect(table.locator("tbody tr")).to_have_count(10)
+    expect(pager.get_by_role("link", name="Primera página")).to_have_count(0)
+    pager.get_by_role("link", name="Página siguiente").click()
+    expect(pager.get_by_label("Página 2")).to_have_attribute("aria-current", "page")
+    logged.get_by_label("Buscar:").fill("tabla larga 5")
+    logged.get_by_label("Buscar:").press("Enter")
+    expect(table.locator("tbody tr")).to_have_count(1)
+    expect(logged.get_by_text("Mostrando 1 a 1 de 1 registros")).to_be_visible()
+    logged.goto("/proyectos?cerrados=1")
+    logged.get_by_label("Mostrar").select_option("20")
+    expect(logged).to_have_url(re.compile(r"tamano=20"))
+    expect(logged).to_have_url(re.compile(r"cerrados=1"))
+    expect(pager.get_by_role("link", name="Página siguiente")).to_have_count(0)
+    shot(logged, "08-tabla-paginada")
+    # Short lists come whole and the browser pages them.
+    for n in range(1, 12):
+        logged.goto("/admin/aplicaciones/nueva")
+        logged.fill("#code", f"APP-T{n:02d}")
+        logged.fill("#name", f"Aplicación {n}")
+        logged.get_by_role("button", name="Guardar").click()
+    logged.goto("/admin/aplicaciones")
+    apps = logged.get_by_role("table", name="Listado")
+    expect(apps.locator("tbody tr:visible")).to_have_count(10)
     expect(pager.get_by_role("button", name="Primera página")).to_be_disabled()
-    expect(pager.get_by_role("button", name="Página anterior")).to_be_disabled()
     pager.get_by_role("button", name="Página siguiente").click()
     expect(pager.get_by_role("button", name="Página 2")).to_have_attribute("aria-current", "page")
-    expect(pager.get_by_role("button", name="Última página")).to_be_disabled()
-    logged.get_by_label("Buscar:").fill("tabla larga 5")
-    expect(table.locator("tbody tr:visible")).to_have_count(1)
-    expect(logged.get_by_text("Mostrando 1 a 1 de 1 registros")).to_be_visible()
-    logged.get_by_label("Buscar:").fill("")
-    logged.get_by_label("Mostrar").select_option("20")
-    expect(pager.get_by_role("button", name="Página siguiente")).to_be_disabled()
-    shot(logged, "08-tabla-paginada")
+    logged.get_by_label("Buscar:").fill("app-t05")
+    expect(apps.locator("tbody tr:visible")).to_have_count(1)
     logged.get_by_role("button", name="English").click()
-    expect(logged.get_by_role("heading", name="Projects")).to_be_visible()
     expect(logged.get_by_role("navigation", name="Table pagination")).to_be_visible()
+    logged.goto("/proyectos")
+    expect(logged.get_by_role("heading", name="Projects")).to_be_visible()
     expect(logged.get_by_text("Showing 1 to 10 of")).to_be_visible()
     logged.goto("/informes/proyectos")
     expect(logged.get_by_text("Plan vs actual").first).to_be_visible()
@@ -127,3 +146,28 @@ def test_side_menu_overlays_the_content_on_mobile(logged: Page) -> None:
     logged.locator("#hp-nav-toggle").click()
     logged.keyboard.press("Escape")
     expect(sidebar).to_be_hidden()
+
+
+MOBILE_PAGES = [
+    "/",
+    "/horas",
+    "/proyectos",
+    "/proyectos/1",
+    "/planificacion/gantt/proyectos",
+    "/informes/",
+    "/informes/proyectos",
+    "/admin/usuarios",
+]
+
+
+def test_pages_do_not_scroll_sideways_on_mobile(logged: Page) -> None:
+    """Wide tables scroll inside their box; the page itself never scrolls sideways."""
+    logged.set_viewport_size({"width": 360, "height": 800})
+    wide = {}
+    for path in MOBILE_PAGES:
+        logged.goto(path)
+        logged.wait_for_load_state("networkidle")
+        extra = logged.evaluate("(d => d.scrollWidth - d.clientWidth)(document.documentElement)")
+        if extra > 0:
+            wide[path] = extra
+    assert not wide, wide

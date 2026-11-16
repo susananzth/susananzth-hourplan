@@ -27,6 +27,7 @@ from hourplan.projects.models import (
 )
 from hourplan.shared.i18n import N_, _, translated
 from hourplan.shared.labels import label, validation_message
+from hourplan.shared.pagination import page_args
 
 bp = Blueprint("projects", __name__, url_prefix="/proyectos", template_folder="templates")
 
@@ -130,10 +131,13 @@ def index() -> str:
     status_id = _int(request.args.get("estado"))
     closed = request.args.get("cerrados") == "1"
     query = request.args.get("q", "")
+    number, size = page_args(request.args)
     return render_template(
         "projects/index.html",
-        projects=services.list_projects(
+        page=services.page_projects(
             session,
+            number,
+            size,
             query=query,
             portfolio_id=portfolio_id,
             status_id=status_id,

@@ -1,6 +1,7 @@
 // Every data table gets a search box, a page size selector and a pager, in the browser.
 // The rows are already on the page; this file only hides and shows them.
-// Opt out with data-tabla="fija" on the table. Rows with data-fija stay always visible
+// Opt out with data-tabla="fija" on the table, or data-tabla="servidor" when the server
+// pages it (templates/_pagination.html draws those controls). Rows with data-fija stay always visible
 // (summaries); a row with a single cell spanning the table is the "no data" message.
 (function () {
   "use strict";
@@ -43,7 +44,7 @@
   }
 
   function enhance(table) {
-    if (table.dataset.tablaLista || table.dataset.tabla === "fija" || !table.tBodies.length) { return; }
+    if (table.dataset.tablaLista || table.dataset.tabla === "fija" || table.dataset.tabla === "servidor" || !table.tBodies.length) { return; }
     table.dataset.tablaLista = "1";
     var id = "tabla-" + (++count);
 
@@ -172,6 +173,12 @@
   function scan(root) {
     (root || document).querySelectorAll("main table").forEach(enhance);
   }
+
+  // Tables paged in the database (data-tabla="servidor"): a new page size reloads the list.
+  document.addEventListener("change", function (event) {
+    var field = event.target.closest && event.target.closest("[data-autoenviar]");
+    if (field && field.form) { field.form.requestSubmit(); }
+  });
 
   document.addEventListener("DOMContentLoaded", function () { scan(document); });
   document.addEventListener("htmx:afterSettle", function () { scan(document); });
