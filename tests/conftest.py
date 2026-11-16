@@ -6,8 +6,10 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
-from flask import Flask
+from flask import Flask, Request
+from flask.sessions import SecureCookieSession, SecureCookieSessionInterface
 from flask.testing import FlaskClient
+from itsdangerous import BadSignature
 from sqlalchemy import Engine, create_engine, make_url, text
 from sqlalchemy.orm import Session, sessionmaker
 from werkzeug.test import TestResponse
@@ -57,6 +59,27 @@ def _isolated_env(monkeypatch: pytest.MonkeyPatch, database_url: str) -> None:
     monkeypatch.delenv("HOURPLAN_OVERLAY_DIR", raising=False)
 
 
+class _AgeAgnosticSessionInterface(SecureCookieSessionInterface):
+    """Signed cookie session that skips the age check.
+
+    The VM clock can step back a second; itsdangerous then rejects the cookie as
+    issued in the future, the session comes back empty and a random test loses its
+    login or CSRF token.
+    """
+
+    def open_session(self, app: Flask, request: Request) -> SecureCookieSession | None:
+        serializer = self.get_signing_serializer(app)
+        if serializer is None:
+            return None
+        value = request.cookies.get(self.get_cookie_name(app))
+        if not value:
+            return self.session_class()
+        try:
+            return self.session_class(serializer.loads(value))
+        except BadSignature:
+            return self.session_class()
+
+
 def alembic_config(url: str) -> Config:
     cfg = Config(str(ROOT / "alembic.ini"))
     cfg.set_main_option("sqlalchemy.url", url)
@@ -77,6 +100,7 @@ def engine(database_url: str) -> Iterator[Engine]:
 @pytest.fixture
 def app(engine: Engine) -> Iterator[Flask]:
     app = create_app("testing")
+    app.session_interface = _AgeAgnosticSessionInterface()
     connection = engine.connect()
     outer = connection.begin()
     db.session_factory = sessionmaker(
