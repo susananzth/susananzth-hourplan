@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_pagination.html" import keep, page_controls, pager with context %}
 {% block title %}{{ _("Proyectos") }} · HourPlan{% endblock %}
 {% block content %}
 {% set input = "rounded-md border border-line-strong bg-surface px-3 py-2 text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
@@ -9,7 +10,7 @@
   {% if can_edit %}<a href="{{ url_for('projects.create') }}" class="{{ primary }}">{{ _("Nuevo proyecto") }}</a>{% endif %}
 </div>
 <form method="get" class="mb-4 flex flex-wrap items-end gap-3">
-{% if filters.q %}<input type="hidden" name="q" value="{{ filters.q }}">{% endif %}
+{{ keep(("cartera", "estado", "cerrados")) }}
   <div><label for="cartera" class="mb-1 block text-xs text-ink-muted">{{ _("Cartera") }}</label>
     <select id="cartera" name="cartera" class="{{ input }}"><option value="">{{ _("Todas") }}</option>
       {% for id, name in portfolios.items() %}<option value="{{ id }}"{% if filters.cartera == id %} selected{% endif %}>{{ name }}</option>{% endfor %}
@@ -21,8 +22,9 @@
   <label class="flex items-center gap-2 pb-2 text-sm text-ink"><input type="checkbox" name="cerrados" value="1"{% if filters.cerrados %} checked{% endif %}> {{ _("Incluir cerrados") }}</label>
   <button type="submit" class="{{ primary }}">{{ _("Filtrar") }}</button>
 </form>
+{{ page_controls(page, "tabla-proyectos") }}
 <div class="overflow-x-auto rounded-lg border border-line bg-surface-raised">
-  <table aria-label="{{ _('Proyectos') }}" class="w-full text-left text-sm">
+  <table id="tabla-proyectos" data-tabla="servidor" aria-label="{{ _('Proyectos') }}" class="w-full text-left text-sm">
     <thead class="border-b border-line text-ink-muted"><tr>
       <th scope="col" class="px-4 py-2 font-medium">{{ _("Código") }}</th>
       <th scope="col" class="px-4 py-2 font-medium">{{ _("Título") }}</th>
@@ -31,7 +33,7 @@
       <th scope="col" class="px-4 py-2 text-right font-medium">{{ _("Esfuerzo base (h)") }}</th>
     </tr></thead>
     <tbody>
-      {% for p in projects %}
+      {% for p in page.items %}
       <tr class="border-b border-line last:border-0">
         <td class="px-4 py-2"><a class="font-medium text-brand-700 hover:underline dark:text-brand-300" href="{{ url_for('projects.detail', project_id=p.id) }}">{{ p.code }}</a></td>
         <td class="px-4 py-2 text-ink">{{ p.title }}</td>
@@ -45,4 +47,5 @@
     </tbody>
   </table>
 </div>
+{{ pager(page) }}
 {% endblock %}

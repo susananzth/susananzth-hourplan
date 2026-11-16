@@ -1,3 +1,5 @@
+from typing import Any
+
 from flask import Blueprint, redirect, render_template, request, url_for
 from markupsafe import Markup
 from werkzeug.wrappers import Response
@@ -19,6 +21,14 @@ def icon(name: str, size: str = "size-4") -> Markup:
         'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
         '<use href="{}#{}"></use></svg>'
     ).format(size, sprite, name)
+
+
+@bp.app_template_global()
+def page_url(number: int) -> str:
+    """This same page and filters, at another page of a list paged in the database."""
+    args: dict[str, Any] = request.args.to_dict(flat=False)
+    args["pagina"] = [str(number)]
+    return url_for(request.endpoint or "main.index", **(request.view_args or {}), **args)
 
 
 @bp.get("/")

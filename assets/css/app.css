@@ -88,6 +88,12 @@
     transition: padding-left 0.2s ease;
   }
 
+  /* A scrolling wrapper must be the containing block of its absolute children (the
+     sr-only headers), or they escape the clip and make the whole page scroll sideways. */
+  .overflow-x-auto {
+    position: relative;
+  }
+
   @media (width >= 64rem) {
     .hp-nav-open {
       overflow: visible;

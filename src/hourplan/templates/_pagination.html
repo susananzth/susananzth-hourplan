@@ -1,0 +1,42 @@
+{# Controls for a table paged in the database (shared.pagination.Page). They look like the
+   ones tables.js draws for tables paged in the browser. Import "with context".
+   Mark the table data-tabla="servidor" so tables.js leaves it alone. #}
+
+{# Hidden copies of the query string, so a form changes only its own fields. #}
+{% macro keep(skip) -%}
+{% for key, value in request.args.items(multi=True) if key not in skip and key != "pagina" %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+{%- endmacro %}
+
+{% macro page_controls(page, table_id) %}
+{% set field = "rounded-md border border-line-strong bg-surface px-2 py-1 text-sm text-ink focus:border-brand-600 focus:outline-2 focus:outline-brand-600" %}
+<form method="get" class="mb-2 flex flex-wrap items-center justify-between gap-3 text-sm text-ink-muted">
+  {{ keep(("q", "tamano")) }}
+  <label class="flex items-center gap-2">{{ _("Mostrar") }}
+    <select name="tamano" data-autoenviar class="{{ field }}">{% for n in page.sizes %}<option value="{{ n }}"{% if n == page.size %} selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+    {{ _("registros") }}</label>
+  <label class="flex items-center gap-2">{{ _("Buscar") }}:
+    <input type="search" name="q" value="{{ request.args.get('q', '') }}" autocomplete="off" aria-controls="{{ table_id }}" class="{{ field }}"></label>
+</form>
+{% endmacro %}
+
+{% macro _link(label, text, number, state="") -%}
+{%- set base = "inline-flex min-w-9 items-center justify-center rounded-md border px-2.5 py-1 text-sm focus-visible:outline-2 focus-visible:outline-brand-600" -%}
+{%- if state == "off" -%}<span class="{{ base }} border-line text-ink opacity-40" aria-hidden="true">{{ text }}</span>
+{%- elif state == "current" -%}<span class="{{ base }} border-brand-600 bg-brand-600 font-medium text-white" aria-current="page" aria-label="{{ label }}">{{ text }}</span>
+{%- else -%}<a href="{{ page_url(number) }}" class="{{ base }} border-line text-ink hover:bg-surface" aria-label="{{ label }}">{{ text }}</a>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro pager(page) %}
+{% set first = page.number == 1 %}{% set last = page.number == page.pages %}
+<div class="mt-2 flex flex-wrap items-center justify-between gap-3 text-sm text-ink-muted">
+  <p>{{ _("Mostrando %s a %s de %s registros") | format(page.first_index, page.last_index, page.total) }} · {{ _("Página %s de %s") | format(page.number, page.pages) }}</p>
+  <nav aria-label="{{ _('Paginación de la tabla') }}" class="flex flex-wrap items-center gap-1">
+    {{ _link(_("Primera página"), "«", 1, "off" if first) }}
+    {{ _link(_("Página anterior"), "‹", page.number - 1, "off" if first) }}
+    {% for n in page.window %}{{ _link(_("Página %s") | format(n), n, n, "current" if n == page.number) }}{% endfor %}
+    {{ _link(_("Página siguiente"), "›", page.number + 1, "off" if last) }}
+    {{ _link(_("Última página"), "»", page.pages, "off" if last) }}
+  </nav>
+</div>
+{% endmacro %}

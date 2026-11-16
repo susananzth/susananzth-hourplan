@@ -19,6 +19,7 @@ from hourplan.reports import compare, dashboard, notes
 from hourplan.reports import export as xlsx
 from hourplan.resources.models import Resource
 from hourplan.shared.i18n import N_, translated
+from hourplan.shared.pagination import page_args
 
 bp = Blueprint("reports", __name__, url_prefix="/informes", template_folder="templates")
 
@@ -90,12 +91,16 @@ def index() -> str:
 @roles_required(*MANAGERS)
 def projects() -> str:
     portfolio_id = _int(request.args.get("cartera"))
+    number, size = page_args(request.args)
     return render_template(
         "reports/projects.html",
-        rows=compare.summaries(
+        page=compare.summary_page(
             db.session,
+            number,
+            size,
             portfolio_id=portfolio_id,
             include_closed=request.args.get("cerrados", "1") == "1",
+            query=request.args.get("q", ""),
             today=_today(),
         ),
         portfolios=[p for p in catalogs.list_portfolios(db.session) if p.is_active],
@@ -219,6 +224,7 @@ def export_projects() -> Response:
         db.session,
         portfolio_id=_int(request.args.get("cartera")),
         include_closed=request.args.get("cerrados", "1") == "1",
+        query=request.args.get("q", ""),
         today=_today(),
     )
     return _download(xlsx.projects_workbook(rows), f"plan-contra-real_{_today()}.xlsx")

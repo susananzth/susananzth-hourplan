@@ -325,6 +325,8 @@ def test_managers_see_the_reports(
     listing = client.get("/informes/proyectos").get_data(as_text=True)
     assert "PJ-00001" in listing
     assert "+20.0 %" in listing
+    assert "Mostrando 1 a 1 de 1 registros" in listing
+    assert "PJ-00001" not in client.get("/informes/proyectos?q=nada").get_data(as_text=True)
     page = f"/informes/proyectos/{world.project.id}"
     assert "Ejecución" in client.get(page).get_data(as_text=True)
 

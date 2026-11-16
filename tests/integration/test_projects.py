@@ -229,3 +229,29 @@ def test_observer_reads_but_cannot_create(
     assert client.get(f"/proyectos/{project.id}").status_code == 200
     assert client.get("/proyectos/nuevo").status_code == 403
     assert client.get("/proyectos/9999").status_code == 404
+
+
+def test_project_list_is_paged_in_the_database(
+    client: FlaskClient, session: Session, make_user: MakeUser, login: Login
+) -> None:
+    template(session)
+    for n in range(1, 26):
+        row = services.ProjectData(code=f"PJ-{n:05d}", title=f"Proyecto {n}")
+        services.create_project(session, row, actor_id=None)
+    sign_in(session, make_user, login, Role.OBSERVER)
+
+    first = client.get("/proyectos").get_data(as_text=True)
+    assert "PJ-00010" in first
+    assert "PJ-00011" not in first
+    assert "Mostrando 1 a 10 de 25 registros" in first
+    assert 'data-tabla="servidor"' in first
+
+    last = client.get("/proyectos?tamano=20&pagina=9").get_data(as_text=True)
+    assert "Mostrando 21 a 25 de 25 registros" in last  # past the end: the last page
+    assert "PJ-00025" in last
+    assert "PJ-00020" not in last
+    assert "tamano=20" in last  # the pager links keep the filters
+
+    found = client.get("/proyectos?q=proyecto+7").get_data(as_text=True)
+    assert "Mostrando 1 a 1 de 1 registros" in found
+    assert client.get("/proyectos?tamano=7&pagina=x").status_code == 200

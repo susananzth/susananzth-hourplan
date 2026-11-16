@@ -6,12 +6,13 @@ green, up to the red limit amber, beyond red (over- and under-runs alike); with 
 the figure remains.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
 from hourplan.audit import services as audit
@@ -32,6 +33,7 @@ from hourplan.projects.models import (
 )
 from hourplan.reports import rework
 from hourplan.reports.models import Compliance, ComplianceSnapshot
+from hourplan.shared.pagination import Page, paginate
 from hourplan.shared.translate import N_, _
 from hourplan.timesheet.models import TimeEntry
 
@@ -427,20 +429,48 @@ class Summary:
     plan_source: str | None  # "baseline" | "current" | None
 
 
-def summaries(
-    session: Session,
-    *,
-    portfolio_id: int | None = None,
-    include_closed: bool = True,
-    today: date,
-) -> list[Summary]:
-    """One line per project. Closed projects show their frozen evaluation when they have one."""
+def _summary_stmt(portfolio_id: int | None, include_closed: bool, query: str) -> Select[Project]:
     stmt = select(Project).where(Project.kind == ProjectKind.PROJECT.value)
     if portfolio_id:
         stmt = stmt.where(Project.portfolio_id == portfolio_id)
     if not include_closed:
         stmt = stmt.where(Project.closed_on.is_(None))
-    projects = list(session.scalars(stmt.order_by(Project.code)))
+    query = query.strip()
+    if query:
+        like = f"%{query.replace('%', '').replace('_', '')}%"
+        stmt = stmt.where(or_(Project.code.ilike(like), Project.title.ilike(like)))
+    return stmt.order_by(Project.code, Project.id)
+
+
+def summaries(
+    session: Session,
+    *,
+    portfolio_id: int | None = None,
+    include_closed: bool = True,
+    query: str = "",
+    today: date,
+) -> list[Summary]:
+    """One line per project. Closed projects show their frozen evaluation when they have one."""
+    stmt = _summary_stmt(portfolio_id, include_closed, query)
+    return _summarize(session, list(session.scalars(stmt)), today)
+
+
+def summary_page(
+    session: Session,
+    number: int,
+    size: int,
+    *,
+    portfolio_id: int | None = None,
+    include_closed: bool = True,
+    query: str = "",
+    today: date,
+) -> Page[Summary]:
+    """``summaries`` one page at a time: only that page's projects are evaluated."""
+    page = paginate(session, _summary_stmt(portfolio_id, include_closed, query), number, size)
+    return page.map(lambda projects: _summarize(session, projects, today))
+
+
+def _summarize(session: Session, projects: Sequence[Project], today: date) -> list[Summary]:
     ids = [p.id for p in projects]
     plans = plan_totals(session, ids)
     actuals = actual_totals(session, ids)

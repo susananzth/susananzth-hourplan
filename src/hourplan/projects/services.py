@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from sqlalchemy import func, or_, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
 from hourplan.audit import services as audit
@@ -23,6 +23,7 @@ from hourplan.projects.models import (
     ProjectPhase,
 )
 from hourplan.shared.labels import label
+from hourplan.shared.pagination import Page, paginate
 from hourplan.shared.translate import _
 
 ENTITY = "project"
@@ -112,15 +113,13 @@ def get_project(session: Session, project_id: int) -> Project:
     return project
 
 
-def list_projects(
-    session: Session,
+def _projects_stmt(
     *,
     query: str = "",
     portfolio_id: int | None = None,
     status_id: int | None = None,
     include_closed: bool = False,
-    limit: int = 200,
-) -> list[Project]:
+) -> Select[Project]:
     stmt = select(Project).where(Project.kind == ProjectKind.PROJECT.value)
     query = query.strip()
     if query:
@@ -132,7 +131,16 @@ def list_projects(
         stmt = stmt.where(Project.status_id == status_id)
     if not include_closed:
         stmt = stmt.where(Project.closed_on.is_(None))
-    return list(session.scalars(stmt.order_by(Project.code).limit(limit)))
+    return stmt.order_by(Project.code, Project.id)
+
+
+def list_projects(session: Session, **filters: Any) -> list[Project]:
+    """Every project that matches (for choosers); the list screen uses ``page_projects``."""
+    return list(session.scalars(_projects_stmt(**filters)))
+
+
+def page_projects(session: Session, number: int, size: int, **filters: Any) -> Page[Project]:
+    return paginate(session, _projects_stmt(**filters), number, size)
 
 
 def _check_references(session: Session, data: ProjectData, own_id: int | None) -> None:
