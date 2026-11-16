@@ -61,6 +61,8 @@ class _Context:
     known_keys: set[str] = field(default_factory=set)
     occurrences: Counter[str] = field(default_factory=Counter)
     titles: dict[tuple[str, str], str] = field(default_factory=dict)
+    # Parents created from a phase row ("PJ-00002-F1"): their title waits for a row of their own.
+    provisional: set[tuple[str, str]] = field(default_factory=set)
     created: dict[str, list[int]] = field(default_factory=dict)
     previous: dict[str, dict[str, dict[str, list[Any]]]] = field(default_factory=dict)
     stats: Counter[str] = field(default_factory=Counter)
@@ -335,25 +337,39 @@ def _target(
 
 
 def _project(
-    ctx: _Context, kind: ProjectKind, code: str, row: SheetRow, sheet: str, variant: str | None
+    ctx: _Context,
+    kind: ProjectKind,
+    code: str,
+    row: SheetRow,
+    sheet: str,
+    variant: str | None,
+    *,
+    for_phase: bool = False,
 ) -> Project:
     title = clean(row.values["title"], 200)
-    project = ctx.projects.get((kind.value, code.upper()))
+    key = (kind.value, code.upper())
+    project = ctx.projects.get(key)
     if project is None:
         parent_id = None
         if variant:
             parent_code = code.removesuffix(f"-{variant}")
-            parent_id = _project(ctx, kind, parent_code, row, sheet, None).id
+            parent_id = _project(ctx, kind, parent_code, row, sheet, None, for_phase=True).id
         project = Project(kind=kind.value, code=code, title=title or code, parent_id=parent_id)
         ctx.session.add(project)
         ctx.track("project", project)
-        ctx.projects[(kind.value, code.upper())] = project
+        ctx.projects[key] = project
         ctx.stats["projects_created"] += 1
-        if title:
-            ctx.titles[(kind.value, code.upper())] = normalise(title)
-    elif title and (kind.value, code.upper()) in ctx.titles:
-        if ctx.titles[(kind.value, code.upper())] != normalise(title):
-            ctx.titles[(kind.value, code.upper())] = normalise(title)  # report each change once
+        if for_phase:
+            ctx.provisional.add(key)
+        elif title:
+            ctx.titles[key] = normalise(title)
+    elif title and not for_phase and key in ctx.provisional:
+        ctx.provisional.discard(key)  # its own row: the phase's title was only a stand-in
+        project.title = title
+        ctx.titles[key] = normalise(title)
+    elif title and not for_phase and key in ctx.titles:
+        if ctx.titles[key] != normalise(title):
+            ctx.titles[key] = normalise(title)  # report each change once
             ctx.issue(
                 IssueSeverity.WARNING, "title_mismatch",
                 f"El código {code} aparece con títulos distintos.", sheet, row.number,
