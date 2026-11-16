@@ -96,4 +96,4 @@ Con datos de demostración (`make e2e` las regenera).
 
 ## Licencia
 
-[GNU Affero General Public License v3.0](LICENSE) © 2026 [susananzth](https://github.com/susananzth).
+[GNU Affero General Public License v3.0](LICENSE) © 2026 Susana Piñero ([susananzth](https://github.com/susananzth)).
