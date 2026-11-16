@@ -287,3 +287,28 @@ def test_cli_import_report_and_revert(app: Flask, workbook: Path) -> None:
     assert runner.invoke(args=["import-revert", str(batch_id)]).exit_code == 0
     assert runner.invoke(args=["import-revert", str(batch_id)]).exit_code != 0
     assert runner.invoke(args=["import-report", "999"]).exit_code != 0
+
+
+def test_a_phase_row_does_not_name_its_parent(session: Session, tmp_path: Path) -> None:
+    book = make_book(
+        tmp_path / "fases.xlsx",
+        [
+            row(
+                ("Ana Pérez", "Proyecto", "PJ-00032-F1", "Subsanación (F1)", "", "", "", ""), {0: 4}
+            ),
+            row(("Ana Pérez", "Proyecto", "PJ-00032", "Subsanación", "", "", "", ""), {1: 4}),
+            row(
+                ("Ana Pérez", "Proyecto", "PJ-00032-F2", "Subsanación (F2)", "", "", "", ""), {2: 4}
+            ),
+        ],
+    )
+
+    batch = services.import_hours(session, book)
+
+    titles = {p.code: p.title for p in session.scalars(select(Project))}
+    assert titles == {
+        "PJ-00032": "Subsanación",
+        "PJ-00032-F1": "Subsanación (F1)",
+        "PJ-00032-F2": "Subsanación (F2)",
+    }
+    assert "title_mismatch" not in codes(session, batch.id)
