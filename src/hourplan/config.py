@@ -94,7 +94,13 @@ class BaseConfig:
             "OIDC_CLIENT_SECRET": os.environ.get("OIDC_CLIENT_SECRET"),
             "OIDC_SCOPES": os.environ.get("OIDC_SCOPES"),
         }
-        return {key: value for key, value in env.items() if value is not None}
+        values = {key: value for key, value in env.items() if value is not None}
+        if _bool_env("HOURPLAN_ALLOW_HTTP"):
+            # Opt-in for a network without HTTPS: browsers drop Secure cookies over plain HTTP.
+            values.update(
+                SESSION_COOKIE_SECURE=False, REMEMBER_COOKIE_SECURE=False, SECURITY_HSTS=False
+            )
+        return values
 
 
 class ProductionConfig(BaseConfig):
