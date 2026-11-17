@@ -17,7 +17,15 @@ bp = Blueprint("imports_cli", __name__, cli_group=None)
 
 def _mapping_path() -> Path | None:
     overlay = current_app.config.get("HOURPLAN_OVERLAY_DIR")
-    return Path(overlay) / "import_mapping.toml" if overlay else None
+    if not overlay:
+        return None
+    path = Path(overlay) / "import_mapping.toml"
+    if not path.is_file():
+        click.echo(
+            f"Aviso: no existe {path}; se usa el mapeo por defecto (códigos PJ-NNNNN).",
+            err=True,
+        )
+    return path
 
 
 @bp.cli.command("import-hours")
